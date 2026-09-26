@@ -1,257 +1,518 @@
-from datetime import datetime, date, time, timedelta
-from typing import List, Optional
-import uuid
+from datetime import datetime, date, timedelta
+from typing import List, Optional, Dict, Any, Tuple
 
 from app.models.flight import (
-    FlightSegment,
-    StopoverInfo,
-    PaymentCardSuitability,
-    RouteOption,
     RouteSearchRequest,
     RouteSearchResponse,
-    FlightClass,
+    TabsResult,
+    Package,
+    PackageClass,
+    FlightSegment,
+    ConnectionInfo,
+    LayoverPreset,
+    PriceConfidence,
+    NeighborDateResult,
+    BaggageChoice,
 )
-from app.data.airports import (
-    AIRPORTS_DB,
-    MOW_TO_IST_TEMPLATES,
-    IST_TO_HKT_TEMPLATES,
-)
+from app.services.aviasales_client import aviasales_client, AviasalesDataClient, AviasalesAPIError
+from app.services.pricing import calculate_basket_price
+from app.services.cta import build_dual_cta, build_aviasales_deep_link
 from app.data.transit_guides import CITY_TRANSIT_GUIDES
 
 
 class FlightSearchService:
-    def __init__(self):
-        self.mow_templates = MOW_TO_IST_TEMPLATES
-        self.ist_templates = IST_TO_HKT_TEMPLATES
-        self.airports = AIRPORTS_DB
+    def __init__(self, client: Optional[AviasalesDataClient] = None):
+        self.client = client or aviasales_client
 
-    def _parse_time_str(self, time_str: str) -> time:
-        parts = time_str.split(":")
-        return time(hour=int(parts[0]), minute=int(parts[1]))
+    def _parse_date(self, d_str: str) -> Optional[date]:
+        try:
+            return datetime.strptime(d_str[:10], "%Y-%m-%d").date()
+        except Exception:
+            return None
 
-    def _generate_segments_for_date(
+    def _filter_and_pick_leg_prices(
         self,
+        prices: List[Dict[str, Any]],
         target_date: date,
-        origin_code: str,
-        dest_code: str,
-    ) -> List[FlightSegment]:
-        segments = []
-        templates = self.mow_templates if dest_code in ("IST", "SAW") else self.ist_templates
-
-        for tmpl in templates:
-            # Check origin filter
-            if origin_code != "MOW" and tmpl["dep_airport"] != origin_code:
+        max_changes: int = 1,
+        day_window: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Per-leg picker:
+        - number_of_changes <= max_changes (default 1)
+        - depart_date within ±5 days of target_date
+        - Sort: min price, tie-break closer date to target_date
+        """
+        valid = []
+        for p in prices:
+            dep_str = p.get("depart_date")
+            if not dep_str:
                 continue
-            # Check destination filter
-            if dest_code not in ("IST", "MOW", "HKT") and tmpl["arr_airport"] != dest_code:
+            d = self._parse_date(dep_str)
+            if not d:
                 continue
 
-            t = self._parse_time_str(tmpl["dep_time_str"])
-            dep_dt = datetime.combine(target_date, t)
-            arr_dt = dep_dt + timedelta(minutes=tmpl["duration_minutes"])
+            day_diff = abs((d - target_date).days)
+            if day_diff > day_window:
+                continue
 
-            seg_id = f"{tmpl['airline_code']}-{tmpl['flight_number'].replace(' ', '')}-{target_date.strftime('%Y%m%d')}"
-            
-            segments.append(
-                FlightSegment(
-                    id=seg_id,
-                    flight_number=tmpl["flight_number"],
-                    airline=tmpl["airline"],
-                    airline_code=tmpl["airline_code"],
-                    departure_airport=tmpl["dep_airport"],
-                    arrival_airport=tmpl["arr_airport"],
-                    departure_time=dep_dt,
-                    arrival_time=arr_dt,
-                    duration_minutes=tmpl["duration_minutes"],
-                    airplane=tmpl["airplane"],
-                    cabin_class=FlightClass.ECONOMY,
-                    baggage_included=True,
-                    baggage_weight_kg=tmpl.get("baggage_kg", 20),
-                )
-            )
-        return segments
+            changes = p.get("number_of_changes", 0)
+            if changes > max_changes:
+                continue
 
-    def _determine_payment_info(self, leg1: FlightSegment, leg2: FlightSegment) -> PaymentCardSuitability:
-        # If Turkish Airlines whole journey
-        if leg1.airline_code == "TK" and leg2.airline_code == "TK":
-            return PaymentCardSuitability(
-                mir_accepted=False,
-                unionpay_accepted=True,
-                foreign_cards_accepted=True,
-                russian_rub_card_accepted=True,
-                notes=(
-                    "Единый билет Turkish Airlines. Можно купить на сайте авиакомпании "
-                    "картой зарубежного банка или UnionPay (РСХБ, Газпромбанк), "
-                    "либо российскими картами МИР/Visa/Mastercard через российские агрегаторы (Авиасейлс, OneTwoTrip, Купибилет) в рублях."
-                ),
-            )
-        # Pegasus airlines
-        elif leg1.airline_code == "PC" and leg2.airline_code == "PC":
-            return PaymentCardSuitability(
-                mir_accepted=False,
-                unionpay_accepted=True,
-                foreign_cards_accepted=True,
-                russian_rub_card_accepted=True,
-                notes=(
-                    "Билет Pegasus Airlines. Оплата на сайте flypgs.com картами зарубежных банков или UnionPay, "
-                    "а также в рублях российскими картами через Aviasales/Яндекс.Путешествия."
-                ),
-            )
-        else:
-            return PaymentCardSuitability(
-                mir_accepted=False,
-                unionpay_accepted=True,
-                foreign_cards_accepted=True,
-                russian_rub_card_accepted=True,
-                notes=(
-                    "Раздельные билеты / интерлайн (Аэрофлот + Turkish/Pegasus). "
-                    "Сегмент по РФ можно оплатить любой российской картой МИР. "
-                    "Всю связку можно оплатить в рублях через российские агентства."
-                ),
-            )
+            price = float(p.get("value", 0))
+            if price <= 0:
+                continue
 
-    def search_routes(self, request: RouteSearchRequest) -> RouteSearchResponse:
-        dep_date = request.departure_date
-        next_day = dep_date + timedelta(days=1)
-        day_after = dep_date + timedelta(days=2)
+            valid.append({
+                "item": p,
+                "date": d,
+                "price": price,
+                "day_diff": day_diff,
+            })
 
-        # Leg 1: MOW -> IST/SAW
-        leg1_candidates = self._generate_segments_for_date(
-            dep_date, origin_code=request.origin, dest_code=request.hub
+        # Sort: min price, tie-break closer date
+        valid.sort(key=lambda x: (x["price"], x["day_diff"]))
+        return [v["item"] for v in valid]
+
+    def _evaluate_connection(
+        self,
+        leg1: Dict[str, Any],
+        leg2: Dict[str, Any],
+        preset: LayoverPreset,
+        allow_airport_change: bool,
+    ) -> Tuple[ConnectionInfo, List[str]]:
+        """
+        Evaluates connection between Leg 1 and Leg 2.
+        Airport-change floor is 6h.
+        Presets (same airport vs IST<->SAW):
+        - faster: 2h00-3h30 (same) | >= 6h (change)
+        - calm: 3h30-8h (same) | 6h-12h (change)
+        - buffer_12h: >= 12h (same) | >= 12h (change)
+        """
+        arr_airport = leg1.get("destination_airport") or leg1.get("destination") or "IST"
+        dep_airport = leg2.get("origin_airport") or leg2.get("origin") or "IST"
+
+        is_airport_change = (
+            (arr_airport == "IST" and dep_airport == "SAW") or
+            (arr_airport == "SAW" and dep_airport == "IST")
         )
 
-        # Leg 2: IST/SAW -> HKT (consider dep_date, next_day, and day_after for layovers)
-        leg2_candidates = []
-        for d in (dep_date, next_day, day_after):
-            leg2_candidates.extend(
-                self._generate_segments_for_date(d, origin_code=request.hub, dest_code=request.destination)
+        flags: List[str] = []
+        preset_ok = True
+
+        if is_airport_change:
+            flags.append("Смена аэропорта в Стамбуле: IST ↔ SAW (закладывайте от 6 часов)")
+            if not allow_airport_change:
+                preset_ok = False
+
+        # Check dates between legs
+        d1 = self._parse_date(leg1.get("depart_date", ""))
+        d2 = self._parse_date(leg2.get("depart_date", ""))
+
+        duration_min = None
+        transfer_notes = None
+
+        if d1 and d2:
+            day_gap = (d2 - d1).days
+            if day_gap < 0:
+                preset_ok = False
+                flags.append("Дата вылета из Стамбула раньше даты вылета из Москвы")
+            elif day_gap == 0:
+                # Same day transfer
+                transfer_notes = "Вылет из Стамбула в тот же день (точное время стыковки уточняйте при бронировании)"
+                if is_airport_change:
+                    flags.append("Внимание: смена аэропорта в один день — проверьте расписание рейсов перед оплатой")
+            elif day_gap == 1:
+                transfer_notes = "Стыковка с ночевкой в Стамбуле (следующий день)"
+                if preset == LayoverPreset.FASTER:
+                    preset_ok = False
+            else:
+                transfer_notes = f"Длинная пересадка в Стамбуле ({day_gap} дн.)"
+                if preset != LayoverPreset.BUFFER_12H:
+                    preset_ok = False
+
+        connection = ConnectionInfo(
+            hub="IST",
+            airport_change=is_airport_change,
+            from_airport=arr_airport,
+            to_airport=dep_airport,
+            duration_min=duration_min,
+            preset_ok=preset_ok,
+            transfer_notes=transfer_notes,
+        )
+        return connection, flags
+
+    def _cluster_packages(self, packages: List[Package]) -> List[Package]:
+        """
+        Near-price clusters: within ±1000 RUB or ~3% -> group under a leader (alternatives list).
+        """
+        if not packages:
+            return []
+
+        # Sort packages by full_basket_rub ASC
+        sorted_pkgs = sorted(packages, key=lambda p: p.full_basket_rub)
+        clustered: List[Package] = []
+
+        for p in sorted_pkgs:
+            placed = False
+            for leader in clustered:
+                price_diff = abs(p.full_basket_rub - leader.full_basket_rub)
+                percent_diff = price_diff / leader.full_basket_rub if leader.full_basket_rub > 0 else 0
+                if price_diff <= 1000.0 or percent_diff <= 0.03:
+                    # Place as alternative to leader
+                    alt_data = {
+                        "id": p.id,
+                        "class": p.package_class.value,
+                        "full_basket_rub": p.full_basket_rub,
+                        "carrier": p.segments[0].carrier,
+                        "flags": p.flags,
+                    }
+                    leader.cluster_alternatives.append(alt_data)
+                    placed = True
+                    break
+            if not placed:
+                clustered.append(p)
+
+        return clustered
+
+    def _sort_recommend_tab(self, packages: List[Package]) -> List[Package]:
+        """
+        recommend tab sort:
+        full_basket_rub ASC.
+        Tie-breaks: unified > no airport change > shorter layover / fewer flags
+        """
+        def sort_key(p: Package):
+            is_unified = 0 if p.package_class == PackageClass.UNIFIED else 1
+            has_airport_change = 1 if p.connection.airport_change else 0
+            flags_count = len(p.flags)
+            return (p.full_basket_rub, is_unified, has_airport_change, flags_count)
+
+        return sorted(packages, key=sort_key)
+
+    async def search_routes(self, request: RouteSearchRequest) -> RouteSearchResponse:
+        empty_reasons: List[str] = []
+        origin = request.origin.upper()
+        hub = request.hub.upper()
+        destination = request.destination.upper()
+        dep_date = request.departure_date
+        dep_date_str = dep_date.strftime("%Y-%m-%d")
+
+        manual_url = build_aviasales_deep_link(
+            origin=origin,
+            destination=destination,
+            depart_date_str=dep_date_str,
+            passengers=request.passengers.total,
+        )
+
+        if not self.client.is_configured:
+            empty_reasons.append("Не задан AVIASALES_TOKEN — скопируйте .env.example в .env и впишите токен")
+            return RouteSearchResponse(
+                query=request.model_dump(),
+                tabs=TabsResult(recommend=[], risk=[]),
+                empty_reasons=empty_reasons,
+                manual_search_url=manual_url,
             )
 
-        min_layover_sec = (request.min_layover_hours or 2.0) * 3600
-        max_layover_sec = (request.max_layover_hours or 48.0) * 3600
+        # 1. Fetch unified candidate prices: MOW -> HKT directly (through Istanbul or direct)
+        unified_raw: List[Dict[str, Any]] = []
+        try:
+            unified_raw = await self.client.get_latest_prices(
+                origin=origin,
+                destination=destination,
+                depart_date=dep_date_str,
+                currency="rub",
+                limit=30,
+            )
+        except AviasalesAPIError as e:
+            empty_reasons.append(f"unified_leg_error: {str(e)}")
 
-        valid_routes: List[RouteOption] = []
+        # 2. Fetch leg 1: MOW -> IST (or SAW)
+        leg1_raw: List[Dict[str, Any]] = []
+        try:
+            leg1_raw = await self.client.get_latest_prices(
+                origin=origin,
+                destination=hub,
+                depart_date=dep_date_str,
+                currency="rub",
+                limit=30,
+            )
+        except AviasalesAPIError as e:
+            empty_reasons.append(f"leg1_error_{origin}_{hub}: {str(e)}")
 
-        for l1 in leg1_candidates:
-            for l2 in leg2_candidates:
-                # Ensure time sequence
-                layover_sec = (l2.departure_time - l1.arrival_time).total_seconds()
-                if layover_sec < min_layover_sec or layover_sec > max_layover_sec:
-                    continue
+        # 3. Fetch leg 2: IST (or SAW) -> HKT
+        leg2_raw: List[Dict[str, Any]] = []
+        try:
+            leg2_raw = await self.client.get_latest_prices(
+                origin=hub,
+                destination=destination,
+                depart_date=dep_date_str,
+                currency="rub",
+                limit=30,
+            )
+        except AviasalesAPIError as e:
+            empty_reasons.append(f"leg2_error_{hub}_{destination}: {str(e)}")
 
-                is_airport_change = l1.arrival_airport != l2.departure_airport
-                if is_airport_change and not request.allow_airport_change:
-                    continue
+        # Pick best candidates
+        picked_unified = self._filter_and_pick_leg_prices(
+            unified_raw,
+            target_date=dep_date,
+            max_changes=request.max_changes_per_leg + 1,  # through tickets may have 1 change at IST
+            day_window=5,
+        )
+        picked_leg1 = self._filter_and_pick_leg_prices(
+            leg1_raw,
+            target_date=dep_date,
+            max_changes=request.max_changes_per_leg,
+            day_window=5,
+        )
+        picked_leg2 = self._filter_and_pick_leg_prices(
+            leg2_raw,
+            target_date=dep_date,
+            max_changes=request.max_changes_per_leg,
+            day_window=5,
+        )
 
-                # Extra minimum transfer time check if airport changes (IST <-> SAW requires min 4.5h)
-                if is_airport_change and layover_sec < 4.5 * 3600:
-                    continue
+        all_packages: List[Package] = []
+        pax_count = request.passengers.total
 
-                layover_minutes = int(layover_sec // 60)
-                total_duration = l1.duration_minutes + layover_minutes + l2.duration_minutes
+        # Build unified packages
+        for idx, u in enumerate(picked_unified[:5]):
+            carrier = u.get("airline") or u.get("gate")
+            bare_price = float(u.get("value", 0))
+            full_basket, confidence, basket_flags = calculate_basket_price(
+                fare_per_pax=bare_price,
+                num_pax=pax_count,
+                num_legs=1,  # 1 through ticket
+                carrier=carrier,
+                baggage=request.baggage,
+                seats=request.seats,
+            )
 
-                # Base price calculation
-                # Find template base prices
-                l1_price = 30000
-                for tmpl in self.mow_templates:
-                    if tmpl["flight_number"] == l1.flight_number:
-                        l1_price = tmpl["base_price_rub"]
-                        break
+            flags = [
+                "Единый сквозной билет (one booking)",
+                "Багаж: обычно сквозной до конечной — уточните при регистрации",
+            ]
+            flags.extend(basket_flags)
 
-                l2_price = 52000
-                for tmpl in self.ist_templates:
-                    if tmpl["flight_number"] == l2.flight_number:
-                        l2_price = tmpl["base_price_rub"]
-                        break
+            seg = FlightSegment(
+                from_airport=u.get("origin_airport") or u.get("origin") or origin,
+                to_airport=u.get("destination_airport") or u.get("destination") or destination,
+                date=u.get("depart_date") or dep_date_str,
+                dep_time=None,
+                arr_time=None,
+                carrier=carrier,
+                airline_name=carrier,
+                flight_number=u.get("flight_number"),
+                changes=u.get("number_of_changes", 1),
+                price_rub=bare_price,
+                source="aviasales_data_api",
+                found_at=u.get("created_at"),
+            )
 
-                # Apply discount for single-airline connections
-                total_price = (l1_price + l2_price) * request.passengers
-                is_single_airline = l1.airline_code == l2.airline_code
-                if is_single_airline:
-                    total_price = round(total_price * 0.92, -2)  # 8% through-fare discount
+            conn = ConnectionInfo(
+                hub=hub,
+                airport_change=False,
+                from_airport=hub,
+                to_airport=hub,
+                duration_min=None,
+                preset_ok=True,  # Unified short connections not filtered by assembly floors
+                transfer_notes="Короткая стыковка авиакомпании (гарантирована перевозчиком)",
+            )
 
-                tags = []
-                if is_single_airline and not is_airport_change:
-                    tags.append("single_ticket")
-                    tags.append("through_baggage")
-                if not is_airport_change:
-                    tags.append("same_airport")
-                else:
-                    tags.append("airport_change_ist_saw")
+            cta = build_dual_cta(
+                package_class=PackageClass.UNIFIED,
+                origin=origin,
+                destination=destination,
+                hub=hub,
+                leg1_date=seg.date,
+                leg2_date=seg.date,
+                carrier=carrier,
+                passengers=pax_count,
+                full_basket_rub=full_basket,
+                airline_price_rub=None,
+            )
 
-                if layover_minutes >= 360 and is_single_airline and l1.airline_code == "TK":
-                    tags.append("touristanbul_eligible")
+            pkg = Package(
+                id=f"UNIFIED-{idx+1}-{seg.from_airport}-{seg.to_airport}-{seg.date}",
+                package_class=PackageClass.UNIFIED,
+                segments=[seg],
+                connection=conn,
+                bare_fare_rub=bare_price * pax_count,
+                full_basket_rub=full_basket,
+                currency="RUB",
+                price_confidence=confidence,
+                flags=flags,
+                cluster_alternatives=[],
+                cta=cta,
+                disclaimer_required=True,
+            )
+            all_packages.append(pkg)
 
-                provider = (
-                    f"{l1.airline}" if is_single_airline else f"{l1.airline} + {l2.airline} via Aviasales"
+        # Build assembly packages (MOW->IST + IST->HKT)
+        assembly_created = 0
+        for l1 in picked_leg1[:6]:
+            for l2 in picked_leg2[:6]:
+                carrier1 = l1.get("airline") or l1.get("gate")
+                carrier2 = l2.get("airline") or l2.get("gate")
+                bare1 = float(l1.get("value", 0))
+                bare2 = float(l2.get("value", 0))
+                bare_fare_total = (bare1 + bare2) * pax_count
+
+                # Calculate basket for 2 separate legs
+                basket1, conf1, flags_b1 = calculate_basket_price(
+                    fare_per_pax=bare1,
+                    num_pax=pax_count,
+                    num_legs=1,
+                    carrier=carrier1,
+                    baggage=request.baggage,
+                    seats=request.seats,
+                )
+                basket2, conf2, flags_b2 = calculate_basket_price(
+                    fare_per_pax=bare2,
+                    num_pax=pax_count,
+                    num_legs=1,
+                    carrier=carrier2,
+                    baggage=request.baggage,
+                    seats=request.seats,
+                )
+                full_basket = basket1 + basket2
+                confidence = PriceConfidence.PARTIAL if (conf1 == PriceConfidence.PARTIAL or conf2 == PriceConfidence.PARTIAL) else PriceConfidence.EXACT
+
+                conn, conn_flags = self._evaluate_connection(
+                    leg1=l1,
+                    leg2=l2,
+                    preset=request.layover_preset,
+                    allow_airport_change=request.allow_airport_change,
                 )
 
-                stopover_info = StopoverInfo(
-                    airport=f"{l1.arrival_airport}" if not is_airport_change else f"{l1.arrival_airport} → {l2.departure_airport}",
-                    city="Istanbul",
-                    duration_minutes=layover_minutes,
-                    is_airport_change=is_airport_change,
-                    requires_transit_visa=False,
-                    visa_notes=CITY_TRANSIT_GUIDES["IST"]["entry_requirements"]["notes"],
+                flags = [
+                    "Два раздельных билета (self-transfer)",
+                    "При опоздании на первый рейс второй билет сгорает без компенсации",
+                ]
+                if request.baggage not in (BaggageChoice.NONE, BaggageChoice.CABIN_ONLY):
+                    flags.append("Багаж: в Стамбуле нужно получить и заново сдать багаж на следующий рейс")
+                flags.extend(conn_flags)
+                flags.extend(flags_b1)
+                flags.extend(flags_b2)
+
+                seg1 = FlightSegment(
+                    from_airport=l1.get("origin_airport") or l1.get("origin") or origin,
+                    to_airport=l1.get("destination_airport") or l1.get("destination") or hub,
+                    date=l1.get("depart_date") or dep_date_str,
+                    dep_time=None,
+                    arr_time=None,
+                    carrier=carrier1,
+                    airline_name=carrier1,
+                    flight_number=l1.get("flight_number"),
+                    changes=l1.get("number_of_changes", 0),
+                    price_rub=bare1,
+                    source="aviasales_data_api",
+                    found_at=l1.get("created_at"),
+                )
+                seg2 = FlightSegment(
+                    from_airport=l2.get("origin_airport") or l2.get("origin") or hub,
+                    to_airport=l2.get("destination_airport") or l2.get("destination") or destination,
+                    date=l2.get("depart_date") or dep_date_str,
+                    dep_time=None,
+                    arr_time=None,
+                    carrier=carrier2,
+                    airline_name=carrier2,
+                    flight_number=l2.get("flight_number"),
+                    changes=l2.get("number_of_changes", 0),
+                    price_rub=bare2,
+                    source="aviasales_data_api",
+                    found_at=l2.get("created_at"),
                 )
 
-                route_id = f"ROUTE-{l1.id}-{l2.id}"
-                payment_info = self._determine_payment_info(l1, l2)
+                cta = build_dual_cta(
+                    package_class=PackageClass.ASSEMBLY,
+                    origin=origin,
+                    destination=destination,
+                    hub=hub,
+                    leg1_date=seg1.date,
+                    leg2_date=seg2.date,
+                    carrier=carrier1,
+                    passengers=pax_count,
+                    full_basket_rub=full_basket,
+                )
 
-                route = RouteOption(
-                    id=route_id,
-                    origin="MOW",
-                    hub="IST",
-                    destination="HKT",
-                    segments=[l1, l2],
-                    stopover=stopover_info,
-                    total_duration_minutes=total_duration,
-                    total_price=float(total_price),
+                assembly_created += 1
+                pkg = Package(
+                    id=f"ASSEMBLY-{assembly_created}-{seg1.from_airport}-{seg2.to_airport}-{seg1.date}",
+                    package_class=PackageClass.ASSEMBLY,
+                    segments=[seg1, seg2],
+                    connection=conn,
+                    bare_fare_rub=bare_fare_total,
+                    full_basket_rub=full_basket,
                     currency="RUB",
-                    booking_provider=provider,
-                    booking_url=f"https://www.aviasales.ru/search/{l1.departure_airport}{dep_date.strftime('%d%m')}{request.destination}1?utm_source=flight_navigator",
-                    payment_info=payment_info,
-                    tags=tags,
+                    price_confidence=confidence,
+                    flags=list(dict.fromkeys(flags)),  # remove duplicates preserving order
+                    cluster_alternatives=[],
+                    cta=cta,
+                    disclaimer_required=True,
                 )
-                valid_routes.append(route)
+                all_packages.append(pkg)
 
-        # Tag fastest and cheapest
-        if valid_routes:
-            cheapest = min(valid_routes, key=lambda r: r.total_price)
-            fastest = min(valid_routes, key=lambda r: r.total_duration_minutes)
-            if "cheapest" not in cheapest.tags:
-                cheapest.tags.append("cheapest")
-            if "fastest" not in fastest.tags:
-                fastest.tags.append("fastest")
+        if not picked_leg1 and not picked_unified:
+            empty_reasons.append("no_cache_for_leg_MOW_IST")
+        if not picked_leg2 and not picked_unified:
+            empty_reasons.append("no_cache_for_leg_IST_HKT")
 
-            # Sorting
-            if request.sort_by == "duration":
-                valid_routes.sort(key=lambda r: r.total_duration_minutes)
-            elif request.sort_by == "layover":
-                valid_routes.sort(key=lambda r: r.stopover.duration_minutes)
-            else:  # price default
-                valid_routes.sort(key=lambda r: r.total_price)
+        # Separate into recommend and risk tabs
+        recommend_list: List[Package] = []
+        risk_list: List[Package] = []
 
-        summary = {}
-        if valid_routes:
-            summary = {
-                "min_price_rub": min(r.total_price for r in valid_routes),
-                "max_price_rub": max(r.total_price for r in valid_routes),
-                "min_duration_minutes": min(r.total_duration_minutes for r in valid_routes),
-                "fastest_hours": round(min(r.total_duration_minutes for r in valid_routes) / 60, 1),
-                "same_airport_count": sum(1 for r in valid_routes if not r.stopover.is_airport_change),
-                "airport_change_count": sum(1 for r in valid_routes if r.stopover.is_airport_change),
-            }
+        for p in all_packages:
+            if p.package_class == PackageClass.UNIFIED:
+                recommend_list.append(p)
+            else:
+                # Assembly
+                if p.connection.preset_ok and not p.connection.airport_change:
+                    recommend_list.append(p)
+                else:
+                    risk_list.append(p)
+
+        # Cluster near prices
+        recommend_clustered = self._cluster_packages(recommend_list)
+        risk_clustered = self._cluster_packages(risk_list)
+
+        # Sort recommend tab with tie-breaks
+        recommend_sorted = self._sort_recommend_tab(recommend_clustered)
+        risk_sorted = sorted(risk_clustered, key=lambda p: p.full_basket_rub)
+
+        tabs = TabsResult(recommend=recommend_sorted, risk=risk_sorted)
+
+        # Neighbor dates (only if requested)
+        neighbor_dates_result: Optional[List[NeighborDateResult]] = None
+        if request.include_neighbor_dates:
+            neighbor_dates_result = []
+            for diff in (-1, 1):
+                n_date = dep_date + timedelta(days=diff)
+                n_date_str = n_date.strftime("%Y-%m-%d")
+                
+                # Check cache for MOW->IST and IST->HKT for neighbor date
+                m_prices = [p for p in leg1_raw if p.get("depart_date") == n_date_str]
+                h_prices = [p for p in leg2_raw if p.get("depart_date") == n_date_str]
+                
+                cheapest_n = None
+                if m_prices and h_prices:
+                    cheapest_n = (min(float(p.get("value", 999999)) for p in m_prices) +
+                                  min(float(p.get("value", 999999)) for p in h_prices)) * pax_count
+
+                neighbor_dates_result.append(NeighborDateResult(
+                    date=n_date_str,
+                    day_diff=diff,
+                    cheapest_price_rub=cheapest_n,
+                    packages_count=len(m_prices) * len(h_prices),
+                ))
 
         return RouteSearchResponse(
-            origin=request.origin,
-            hub=request.hub,
-            destination=request.destination,
-            departure_date=dep_date,
-            currency="RUB",
-            total_found=len(valid_routes),
-            routes=valid_routes,
-            summary=summary,
+            query=request.model_dump(),
+            tabs=tabs,
+            neighbor_dates=neighbor_dates_result,
+            empty_reasons=empty_reasons,
+            manual_search_url=manual_url,
         )
 
 
