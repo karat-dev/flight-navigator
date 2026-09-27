@@ -10,6 +10,7 @@ def build_aviasales_deep_link(
     return_date_str: Optional[str] = None,
     hub: Optional[str] = None,
     second_depart_date_str: Optional[str] = None,
+    second_origin: Optional[str] = None,
     passengers: int = 1,
 ) -> str:
     """
@@ -31,7 +32,8 @@ def build_aviasales_deep_link(
     
     if hub and second_depart_date_str:
         d2 = to_ddmm(second_depart_date_str)
-        route_part = f"{origin}{d1}{hub}-{hub}{d2}{destination}{passengers}"
+        mid = second_origin or hub
+        route_part = f"{origin}{d1}{hub}-{mid}{d2}{destination}{passengers}"
     else:
         route_part = f"{origin}{d1}{destination}{passengers}"
 
@@ -67,6 +69,7 @@ def build_dual_cta(
     passengers: int,
     full_basket_rub: float,
     airline_price_rub: Optional[float] = None,
+    leg2_origin: Optional[str] = None,
 ) -> DualCTA:
     """
     Dual CTA rule:
@@ -81,6 +84,7 @@ def build_dual_cta(
         depart_date_str=leg1_date,
         hub=hub if package_class == PackageClass.ASSEMBLY else None,
         second_depart_date_str=leg2_date if package_class == PackageClass.ASSEMBLY else None,
+        second_origin=leg2_origin if package_class == PackageClass.ASSEMBLY else None,
         passengers=passengers,
     )
 
@@ -105,8 +109,8 @@ def build_dual_cta(
             )
         return DualCTA(primary=primary, secondary=secondary)
 
-    else:
-        # Unified
+    elif package_class in (PackageClass.UNIFIED, PackageClass.THROUGH_UNVERIFIED):
+        # Single-ticket (verified or agency through)
         airline_is_cheaper = False
         if airline_price_rub is not None:
             price_diff = full_basket_rub - airline_price_rub
@@ -143,3 +147,12 @@ def build_dual_cta(
                     price_rub=airline_price_rub,
                 )
         return DualCTA(primary=primary, secondary=secondary)
+
+    else:
+        primary = CTAInfo(
+            title="Купить на Авиасейлс",
+            url=aviasales_url,
+            provider_name="Авиасейлс",
+            price_rub=full_basket_rub,
+        )
+        return DualCTA(primary=primary, secondary=None)

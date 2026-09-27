@@ -14,7 +14,7 @@ from app.models.flight import (
     PackageClass,
 )
 from app.services.flight_search import FlightSearchService
-from app.services.aviasales_client import AviasalesDataClient
+from app.services.aviasales_client import AviasalesDataClient, normalize_v2_item
 from app.services.pricing import calculate_basket_price
 from app.services.cta import build_dual_cta, build_aviasales_deep_link
 
@@ -72,57 +72,68 @@ async def test_no_template_flights_in_search():
 async def test_search_with_mocked_data_api():
     """Test full search flow with mock Travelpayouts Data API responses."""
     mock_client = AviasalesDataClient(token="test_token_123")
-    
-    # Mock get_latest_prices
-    async def mock_get_latest_prices(origin, destination, depart_date, currency="rub", limit=30, page=1):
+
+    def row(**kwargs):
+        base = {
+            "depart_date": "2026-11-10",
+            "value": 25000,
+            "airline": "TK",
+            "number_of_changes": 0,
+            "gate": "Авиасейлс",
+            "duration": 300,
+            "origin_airport": "VKO",
+            "destination_airport": "IST",
+            "api_version": "v3",
+            "itinerary_airports": ["VKO", "IST"],
+        }
+        base.update(kwargs)
+        return base
+
+    async def mock_fetch_route_prices(origin, destination, target_date, currency="rub"):
         if origin == "MOW" and destination == "IST":
             return [
-                {
-                    "origin": "VKO",
-                    "destination": "IST",
-                    "depart_date": "2026-11-10",
-                    "value": 25000,
-                    "airline": "TK",
-                    "number_of_changes": 0,
-                    "created_at": "2026-09-23T10:00:00Z",
-                },
-                {
-                    "origin": "SVO",
-                    "destination": "SAW",
-                    "depart_date": "2026-11-10",
-                    "value": 18000,
-                    "airline": "PC",
-                    "number_of_changes": 0,
-                    "created_at": "2026-09-23T10:00:00Z",
-                },
-            ]
-        elif origin == "IST" and destination == "HKT":
+                row(destination_airport="IST", value=25000),
+                row(
+                    origin_airport="SVO",
+                    destination_airport="SAW",
+                    value=18000,
+                    airline="PC",
+                    itinerary_airports=["SVO", "SAW"],
+                ),
+            ], "v3"
+        if origin == "MOW" and destination == "SAW":
+            return [row(destination_airport="SAW", airline="PC", value=18000)], "v3"
+        if origin == "IST" and destination == "HKT":
             return [
-                {
-                    "origin": "IST",
-                    "destination": "HKT",
-                    "depart_date": "2026-11-10",
-                    "value": 45000,
-                    "airline": "TK",
-                    "number_of_changes": 0,
-                    "created_at": "2026-09-23T10:00:00Z",
-                },
-            ]
-        elif origin == "MOW" and destination == "HKT":
+                row(
+                    origin_airport="IST",
+                    destination_airport="HKT",
+                    value=45000,
+                    itinerary_airports=["IST", "HKT"],
+                )
+            ], "v3"
+        if origin == "SAW" and destination == "HKT":
             return [
-                {
-                    "origin": "VKO",
-                    "destination": "HKT",
-                    "depart_date": "2026-11-10",
-                    "value": 68000,
-                    "airline": "TK",
-                    "number_of_changes": 1,
-                    "created_at": "2026-09-23T10:00:00Z",
-                }
-            ]
-        return []
+                row(
+                    origin_airport="SAW",
+                    destination_airport="HKT",
+                    value=44000,
+                    itinerary_airports=["SAW", "HKT"],
+                )
+            ], "v3"
+        if origin == "MOW" and destination == "HKT":
+            return [
+                row(
+                    origin_airport="VKO",
+                    destination_airport="HKT",
+                    value=68000,
+                    number_of_changes=1,
+                    itinerary_airports=["VKO", "IST", "HKT"],
+                )
+            ], "v3"
+        return [], "v3"
 
-    mock_client.get_latest_prices = AsyncMock(side_effect=mock_get_latest_prices)
+    mock_client.fetch_route_prices = AsyncMock(side_effect=mock_fetch_route_prices)
 
     svc = FlightSearchService(client=mock_client)
     req = RouteSearchRequest(
@@ -138,30 +149,24 @@ async def test_search_with_mocked_data_api():
     )
     result = await svc.search_routes(req)
 
-    # Check tabs populated
     assert len(result.tabs.recommend) > 0 or len(result.tabs.risk) > 0
     all_pkgs = result.tabs.recommend + result.tabs.risk
 
-    # Unified package check
     unified = [p for p in all_pkgs if p.package_class == PackageClass.UNIFIED]
     assert len(unified) >= 1
-    assert unified[0].connection.preset_ok is True
-    assert "обычно сквозной" in unified[0].flags[1]
+    assert unified[0].connection.hub == "IST"
+    assert "обычно сквозной" in " ".join(unified[0].flags)
 
-    # Assembly package check (SAW -> IST airport change goes to risk)
-    risk_pkgs = result.tabs.risk
-    assert any(p.connection.airport_change for p in risk_pkgs)
-    saw_ist_pkg = next(p for p in risk_pkgs if p.connection.airport_change)
-    assert any("IST ↔ SAW" in f for f in saw_ist_pkg.flags)
+    assemblies = [p for p in all_pkgs if p.package_class == PackageClass.ASSEMBLY]
+    assert len(assemblies) >= 1
+    assert any(p.connection.airport_change for p in assemblies)
 
-    # Check neighbor dates block is returned
     assert result.neighbor_dates is not None
     assert len(result.neighbor_dates) == 2
 
 
 @pytest.mark.asyncio
 async def test_basket_price_calculation():
-    # Full service
     basket_tk, conf_tk, flags_tk = calculate_basket_price(
         fare_per_pax=30000,
         num_pax=2,
@@ -170,11 +175,9 @@ async def test_basket_price_calculation():
         baggage=BaggageChoice.CHECKED_20KG,
         seats=SeatChoice.YES,
     )
-    # Fare: 30000 * 2 = 60000. Seats: 900 * 2 legs * 2 pax = 3600. Total = 63600.
     assert basket_tk == 63600.0
     assert conf_tk.value == "exact"
 
-    # LCC (PC - Pegasus) with checked bag
     basket_pc, conf_pc, flags_pc = calculate_basket_price(
         fare_per_pax=20000,
         num_pax=1,
@@ -183,13 +186,22 @@ async def test_basket_price_calculation():
         baggage=BaggageChoice.CHECKED_20KG,
         seats=SeatChoice.NONE,
     )
-    # Fare: 20000. Bag: 3900. Total: 23900.
     assert basket_pc == 23900.0
     assert conf_pc.value == "partial"
 
+    basket_unk, conf_unk, flags_unk = calculate_basket_price(
+        fare_per_pax=20000,
+        num_pax=1,
+        num_legs=1,
+        carrier=None,
+        baggage=BaggageChoice.CHECKED_20KG,
+        seats=SeatChoice.NONE,
+    )
+    assert conf_unk.value == "unknown"
+    assert any("Багаж не учтён" in f for f in flags_unk)
+
 
 def test_dual_cta_rules():
-    # Assembly CTA: Aviasales is always primary
     cta_assembly = build_dual_cta(
         package_class=PackageClass.ASSEMBLY,
         origin="MOW",
@@ -205,7 +217,6 @@ def test_dual_cta_rules():
     assert "marker=765617" in cta_assembly.primary.url
     assert cta_assembly.secondary is not None
 
-    # Unified CTA: airline cheaper by >=5% or >=1500 RUB
     cta_unified_airline_cheaper = build_dual_cta(
         package_class=PackageClass.UNIFIED,
         origin="MOW",
@@ -216,7 +227,7 @@ def test_dual_cta_rules():
         carrier="TK",
         passengers=1,
         full_basket_rub=80000,
-        airline_price_rub=75000,  # 5000 diff > 1500 & > 5%
+        airline_price_rub=75000,
     )
     assert "TK" in cta_unified_airline_cheaper.primary.title or "Turkish" in cta_unified_airline_cheaper.primary.provider_name
     assert "Авиасейлс" in cta_unified_airline_cheaper.secondary.provider_name

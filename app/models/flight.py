@@ -32,12 +32,14 @@ class LayoverPreset(str, Enum):
 
 class PackageClass(str, Enum):
     UNIFIED = "unified"
+    THROUGH_UNVERIFIED = "through_unverified"
     ASSEMBLY = "assembly"
 
 
 class PriceConfidence(str, Enum):
     EXACT = "exact"
     PARTIAL = "partial"
+    UNKNOWN = "unknown"
 
 
 class AirportInfo(BaseModel):
@@ -58,6 +60,9 @@ class FlightSegment(BaseModel):
     from_airport: str = Field(..., description="Departure airport or city IATA code")
     to_airport: str = Field(..., description="Arrival airport or city IATA code")
     date: str = Field(..., description="Departure date (YYYY-MM-DD)")
+    price_date: Optional[str] = Field(
+        None, description="Calendar date the fare was priced for (may differ from requested date)"
+    )
     dep_time: Optional[str] = Field(None, description="Exact departure time if known (null if not returned by cache)")
     arr_time: Optional[str] = Field(None, description="Exact arrival time if known (null if not returned by cache)")
     carrier: Optional[str] = Field(None, description="Carrier / airline IATA code from API (often absent in cache)")
@@ -74,12 +79,15 @@ class FlightSegment(BaseModel):
 
 
 class ConnectionInfo(BaseModel):
-    hub: str = Field("IST", description="Hub city/airport")
+    hub: Optional[str] = Field(None, description="Stopover hub if known from API (null if unknown)")
     airport_change: bool = Field(False, description="Whether passenger transfers between IST and SAW")
     from_airport: Optional[str] = Field(None, description="Arrival airport at hub")
     to_airport: Optional[str] = Field(None, description="Departure airport at hub")
     duration_min: Optional[int] = Field(None, description="Layover in minutes if times known, else null")
-    preset_ok: bool = Field(True, description="Whether connection complies with chosen preset floors")
+    preset_ok: Optional[bool] = Field(
+        None,
+        description="Whether connection complies with preset; null if layover time unknown",
+    )
     transfer_notes: Optional[str] = Field(None, description="Notes on airport change, minimum connection time")
     hub_in_api: Optional[str] = Field(
         None,

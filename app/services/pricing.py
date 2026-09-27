@@ -34,19 +34,19 @@ def calculate_basket_price(
 
     # Baggage calculation
     if baggage not in (BaggageChoice.NONE, BaggageChoice.CABIN_ONLY):
-        # If low-cost carrier like Pegasus (PC) or unknown, add baggage estimate
-        is_lcc = carrier and carrier.upper() in ("PC", "WZ", "DP", "A4")
-        if is_lcc:
-            extra_per_pax_leg += BAGGAGE_EXTRA_RUB_PER_LEG.get(baggage.value, 3900.0)
-            confidence = PriceConfidence.PARTIAL
-            flags.append(f"Багаж ({baggage.value}) оценен ориентировочно для лоукостера {carrier}")
+        if not carrier:
+            confidence = PriceConfidence.UNKNOWN
+            flags.append("Багаж не учтён в цене — проверьте при покупке")
         else:
-            # Full service (TK, SU) usually includes standard checked bag in international fares,
-            # but for economy light it may require extra
-            if baggage in (BaggageChoice.CHECKED_23KG, BaggageChoice.CHECKED_30KG):
-                # Standard or higher
+            is_lcc = carrier.upper() in ("PC", "WZ", "DP", "A4", "D7")
+            if is_lcc:
+                extra_per_pax_leg += BAGGAGE_EXTRA_RUB_PER_LEG.get(baggage.value, 3900.0)
+                confidence = PriceConfidence.PARTIAL
+                flags.append(f"Багаж ({baggage.value}) оценен ориентировочно для лоукостера {carrier}")
+            elif baggage in (BaggageChoice.CHECKED_23KG, BaggageChoice.CHECKED_30KG):
                 pass
-            flags.append("Норма багажа: проверьте включённый вес при покупке билета")
+            else:
+                flags.append("Норма багажа: проверьте включённый вес при покупке билета")
 
     # Seat selection
     if seats == SeatChoice.YES:
