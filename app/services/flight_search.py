@@ -81,6 +81,7 @@ class FlightSearchService:
         leg2: Dict[str, Any],
         preset: LayoverPreset,
         allow_airport_change: bool,
+        times_unknown: bool = True,
     ) -> Tuple[ConnectionInfo, List[str]]:
         """
         Evaluates connection between Leg 1 and Leg 2.
@@ -118,9 +119,19 @@ class FlightSearchService:
             if day_gap < 0:
                 preset_ok = False
                 flags.append("Дата вылета из Стамбула раньше даты вылета из Москвы")
+            elif times_unknown:
+                if day_gap == 0:
+                    transfer_notes = "Стыковка в один календарный день (время неизвестно)"
+                elif day_gap == 1:
+                    transfer_notes = "Стыковка с ночевкой в Стамбуле (следующий день)"
+                else:
+                    transfer_notes = f"Между сегментами {day_gap} календарных дн. (время стыковки неизвестно)"
+                if is_airport_change:
+                    flags.append(
+                        "Смена аэропорта IST ↔ SAW — без точного времени рейсов проверьте возможность успеть"
+                    )
             elif day_gap == 0:
-                # Same day transfer
-                transfer_notes = "Вылет из Стамбула в тот же день (точное время стыковки уточняйте при бронировании)"
+                transfer_notes = "Вылет из Стамбула в тот же день"
                 if is_airport_change:
                     flags.append("Внимание: смена аэропорта в один день — проверьте расписание рейсов перед оплатой")
             elif day_gap == 1:
@@ -176,17 +187,37 @@ class FlightSearchService:
 
         return clustered
 
+    def _has_visa_warning(self, package: Package) -> bool:
+        visa_markers = ("виз", "паспорт", "шенген")
+        return any(
+            any(marker in flag.lower() for marker in visa_markers)
+            for flag in package.flags
+        )
+
+    def _estimated_layover_minutes(self, package: Package) -> int:
+        if package.connection.duration_min is not None:
+            return package.connection.duration_min
+        if package.package_class == PackageClass.UNIFIED:
+            return 0
+        if len(package.segments) >= 2:
+            d1 = self._parse_date(package.segments[0].date)
+            d2 = self._parse_date(package.segments[1].date)
+            if d1 and d2:
+                return max(0, (d2 - d1).days * 24 * 60)
+        return 999_999
+
     def _sort_recommend_tab(self, packages: List[Package]) -> List[Package]:
         """
         recommend tab sort:
         full_basket_rub ASC.
-        Tie-breaks: unified > no airport change > shorter layover / fewer flags
+        Tie-breaks: unified > no airport change > no visa warning > shorter layover
         """
         def sort_key(p: Package):
             is_unified = 0 if p.package_class == PackageClass.UNIFIED else 1
             has_airport_change = 1 if p.connection.airport_change else 0
-            flags_count = len(p.flags)
-            return (p.full_basket_rub, is_unified, has_airport_change, flags_count)
+            has_visa_warning = 1 if self._has_visa_warning(p) else 0
+            layover = self._estimated_layover_minutes(p)
+            return (p.full_basket_rub, is_unified, has_airport_change, has_visa_warning, layover)
 
         return sorted(packages, key=sort_key)
 
@@ -278,7 +309,11 @@ class FlightSearchService:
 
         # Build unified packages
         for idx, u in enumerate(picked_unified[:5]):
-            carrier = u.get("airline") or u.get("gate")
+            carrier = u.get("airline")
+            gate = u.get("gate")
+            api_changes = int(u.get("number_of_changes", 0))
+            api_duration = u.get("duration")
+            duration_minutes = int(api_duration) if api_duration is not None else None
             bare_price = float(u.get("value", 0))
             full_basket, confidence, basket_flags = calculate_basket_price(
                 fare_per_pax=bare_price,
@@ -293,6 +328,13 @@ class FlightSearchService:
                 "Единый сквозной билет (one booking)",
                 "Багаж: обычно сквозной до конечной — уточните при регистрации",
             ]
+            if api_changes >= 1:
+                flags.append(
+                    f"По кэшу Data API: пересадок {api_changes}; "
+                    "аэропорт стыковки (IST/SAW) и авиакомпания в ответе API не указаны"
+                )
+            if gate and not carrier:
+                flags.append(f"В кэше указано агентство (gate): {gate} — не код авиакомпании")
             flags.extend(basket_flags)
 
             seg = FlightSegment(
@@ -302,9 +344,11 @@ class FlightSearchService:
                 dep_time=None,
                 arr_time=None,
                 carrier=carrier,
-                airline_name=carrier,
+                airline_name=u.get("airline_name") or carrier,
+                gate=gate,
                 flight_number=u.get("flight_number"),
-                changes=u.get("number_of_changes", 1),
+                changes=api_changes,
+                duration_minutes=duration_minutes,
                 price_rub=bare_price,
                 source="aviasales_data_api",
                 found_at=u.get("created_at"),
@@ -313,11 +357,18 @@ class FlightSearchService:
             conn = ConnectionInfo(
                 hub=hub,
                 airport_change=False,
-                from_airport=hub,
-                to_airport=hub,
+                from_airport=None,
+                to_airport=None,
                 duration_min=None,
                 preset_ok=True,  # Unified short connections not filtered by assembly floors
-                transfer_notes="Короткая стыковка авиакомпании (гарантирована перевозчиком)",
+                transfer_notes=(
+                    f"Сквозной тариф MOW–HKT; в кэше {api_changes} пересадка(и), "
+                    "хаб IST/SAW не декодирован — проверьте маршрут на Авиасейлс"
+                    if api_changes >= 1
+                    else "Прямой или сквозной тариф по кэшу (без детализации сегментов)"
+                ),
+                hub_in_api=u.get("transfer_airport") or u.get("route"),
+                changes_in_api=api_changes,
             )
 
             cta = build_dual_cta(
@@ -325,8 +376,8 @@ class FlightSearchService:
                 origin=origin,
                 destination=destination,
                 hub=hub,
-                leg1_date=seg.date,
-                leg2_date=seg.date,
+                leg1_date=dep_date_str,
+                leg2_date=dep_date_str,
                 carrier=carrier,
                 passengers=pax_count,
                 full_basket_rub=full_basket,
@@ -353,8 +404,12 @@ class FlightSearchService:
         assembly_created = 0
         for l1 in picked_leg1[:6]:
             for l2 in picked_leg2[:6]:
-                carrier1 = l1.get("airline") or l1.get("gate")
-                carrier2 = l2.get("airline") or l2.get("gate")
+                d1 = self._parse_date(l1.get("depart_date", ""))
+                d2 = self._parse_date(l2.get("depart_date", ""))
+                if d1 and d2 and d2 < d1:
+                    continue
+                carrier1 = l1.get("airline")
+                carrier2 = l2.get("airline")
                 bare1 = float(l1.get("value", 0))
                 bare2 = float(l2.get("value", 0))
                 bare_fare_total = (bare1 + bare2) * pax_count
@@ -379,33 +434,18 @@ class FlightSearchService:
                 full_basket = basket1 + basket2
                 confidence = PriceConfidence.PARTIAL if (conf1 == PriceConfidence.PARTIAL or conf2 == PriceConfidence.PARTIAL) else PriceConfidence.EXACT
 
-                conn, conn_flags = self._evaluate_connection(
-                    leg1=l1,
-                    leg2=l2,
-                    preset=request.layover_preset,
-                    allow_airport_change=request.allow_airport_change,
-                )
-
-                flags = [
-                    "Два раздельных билета (self-transfer)",
-                    "При опоздании на первый рейс второй билет сгорает без компенсации",
-                ]
-                if request.baggage not in (BaggageChoice.NONE, BaggageChoice.CABIN_ONLY):
-                    flags.append("Багаж: в Стамбуле нужно получить и заново сдать багаж на следующий рейс")
-                flags.extend(conn_flags)
-                flags.extend(flags_b1)
-                flags.extend(flags_b2)
-
                 seg1 = FlightSegment(
                     from_airport=l1.get("origin_airport") or l1.get("origin") or origin,
                     to_airport=l1.get("destination_airport") or l1.get("destination") or hub,
                     date=l1.get("depart_date") or dep_date_str,
                     dep_time=None,
                     arr_time=None,
-                    carrier=carrier1,
-                    airline_name=carrier1,
+                    carrier=l1.get("airline"),
+                    airline_name=l1.get("airline_name") or l1.get("airline"),
+                    gate=l1.get("gate"),
                     flight_number=l1.get("flight_number"),
                     changes=l1.get("number_of_changes", 0),
+                    duration_minutes=int(l1["duration"]) if l1.get("duration") is not None else None,
                     price_rub=bare1,
                     source="aviasales_data_api",
                     found_at=l1.get("created_at"),
@@ -416,14 +456,41 @@ class FlightSearchService:
                     date=l2.get("depart_date") or dep_date_str,
                     dep_time=None,
                     arr_time=None,
-                    carrier=carrier2,
-                    airline_name=carrier2,
+                    carrier=l2.get("airline"),
+                    airline_name=l2.get("airline_name") or l2.get("airline"),
+                    gate=l2.get("gate"),
                     flight_number=l2.get("flight_number"),
                     changes=l2.get("number_of_changes", 0),
+                    duration_minutes=int(l2["duration"]) if l2.get("duration") is not None else None,
                     price_rub=bare2,
                     source="aviasales_data_api",
                     found_at=l2.get("created_at"),
                 )
+                times_unknown = seg1.dep_time is None and seg2.dep_time is None
+
+                conn, conn_flags = self._evaluate_connection(
+                    leg1=l1,
+                    leg2=l2,
+                    preset=request.layover_preset,
+                    allow_airport_change=request.allow_airport_change,
+                    times_unknown=times_unknown,
+                )
+
+                flags = [
+                    "Два раздельных билета (self-transfer)",
+                    "При опоздании на первый рейс второй билет сгорает без компенсации",
+                ]
+                if times_unknown:
+                    flags.append("Время стыковки неизвестно — проверьте перед покупкой")
+                if request.baggage not in (BaggageChoice.NONE, BaggageChoice.CABIN_ONLY):
+                    flags.append("Багаж: в Стамбуле нужно получить и заново сдать багаж на следующий рейс")
+                flags.extend(conn_flags)
+                flags.extend(flags_b1)
+                flags.extend(flags_b2)
+                if not carrier1 and l1.get("gate"):
+                    flags.append(f"Сегмент MOW–{hub}: в кэше только агентство (gate): {l1.get('gate')}")
+                if not carrier2 and l2.get("gate"):
+                    flags.append(f"Сегмент {hub}–HKT: в кэше только агентство (gate): {l2.get('gate')}")
 
                 cta = build_dual_cta(
                     package_class=PackageClass.ASSEMBLY,

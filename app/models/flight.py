@@ -60,10 +60,14 @@ class FlightSegment(BaseModel):
     date: str = Field(..., description="Departure date (YYYY-MM-DD)")
     dep_time: Optional[str] = Field(None, description="Exact departure time if known (null if not returned by cache)")
     arr_time: Optional[str] = Field(None, description="Exact arrival time if known (null if not returned by cache)")
-    carrier: Optional[str] = Field(None, description="Carrier / airline code (e.g. TK, SU, PC, WZ)")
-    airline_name: Optional[str] = Field(None, description="Airline name")
+    carrier: Optional[str] = Field(None, description="Carrier / airline IATA code from API (often absent in cache)")
+    airline_name: Optional[str] = Field(None, description="Airline name from API when available")
+    gate: Optional[str] = Field(None, description="OTA/agency from cache (gate), not the operating carrier")
     flight_number: Optional[str] = Field(None, description="Flight number if known, otherwise null")
     changes: int = Field(0, description="Number of transfers within this leg")
+    duration_minutes: Optional[int] = Field(
+        None, description="Total leg duration from API cache (minutes), if provided"
+    )
     price_rub: float = Field(..., description="Bare price for this leg from Data API")
     source: str = Field("aviasales_data_api", description="Data source")
     found_at: Optional[str] = Field(None, description="When the price was recorded in cache")
@@ -77,6 +81,11 @@ class ConnectionInfo(BaseModel):
     duration_min: Optional[int] = Field(None, description="Layover in minutes if times known, else null")
     preset_ok: bool = Field(True, description="Whether connection complies with chosen preset floors")
     transfer_notes: Optional[str] = Field(None, description="Notes on airport change, minimum connection time")
+    hub_in_api: Optional[str] = Field(
+        None,
+        description="Stopover airport/city if returned by Data API (often null; IST/SAW not in cache)",
+    )
+    changes_in_api: Optional[int] = Field(None, description="number_of_changes from unified MOW–HKT cache row")
 
 
 class CTAInfo(BaseModel):

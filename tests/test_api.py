@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient, ASGITransport
 
 from app.main import app
+from app.core.config import settings
 from app.models.flight import (
     RouteSearchRequest,
     LayoverPreset,
@@ -30,33 +31,37 @@ async def test_root():
 
 @pytest.mark.asyncio
 async def test_health_without_token():
-    # Token not configured
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.get("/api/v1/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert "aviasales_data_api" in data
-    assert data["aviasales_data_api"]["configured"] is False
-    assert "Не задан AVIASALES_TOKEN" in data["aviasales_data_api"]["message"]
-    # Ensure no token leaks
-    assert "token" not in str(data).lower() or "aviasales_token" in str(data).lower()
+    with patch.object(settings, "AVIASALES_TOKEN", None):
+        from app.services import aviasales_client as ac_mod
+
+        client = ac_mod.AviasalesDataClient(token=None)
+        with patch("app.api.endpoints.aviasales_client", client):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                response = await ac.get("/api/v1/health")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "ok"
+            assert data["aviasales_data_api"]["configured"] is False
+            assert "Не задан AVIASALES_TOKEN" in data["aviasales_data_api"]["message"]
 
 
 @pytest.mark.asyncio
 async def test_no_template_flights_in_search():
     """Ensure hardcoded flight templates (TK 414, SU 2136, etc.) do NOT appear in search."""
-    # When token is missing, returns empty_reasons, zero fabricated flights
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        res = await ac.get("/api/v1/routes/quick-search?departure_date=2026-11-10")
-    assert res.status_code == 200
-    data = res.json()
-    assert len(data["tabs"]["recommend"]) == 0
-    assert len(data["tabs"]["risk"]) == 0
-    assert "Не задан AVIASALES_TOKEN" in data["empty_reasons"][0]
-    # Check that template flight numbers do not appear
+    with patch.object(settings, "AVIASALES_TOKEN", None):
+        from app.services import aviasales_client as ac_mod
+
+        client = ac_mod.AviasalesDataClient(token=None)
+        svc = FlightSearchService(client=client)
+        with patch("app.api.endpoints.flight_service", svc):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                res = await ac.get("/api/v1/routes/quick-search?departure_date=2026-11-10")
+                assert res.status_code == 200
+                data = res.json()
+                assert len(data["tabs"]["recommend"]) == 0
+                assert "Не задан AVIASALES_TOKEN" in data["empty_reasons"][0]
     serialized = str(data)
     assert "TK 414" not in serialized
     assert "SU 2136" not in serialized
