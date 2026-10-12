@@ -69,6 +69,31 @@ async def test_no_template_flights_in_search():
 
 
 @pytest.mark.asyncio
+async def test_quick_search_hubs_and_return_without_inventing_flights():
+    with patch.object(settings, "AVIASALES_TOKEN", None):
+        from app.services import aviasales_client as ac_mod
+
+        client = ac_mod.AviasalesDataClient(token=None)
+        svc = FlightSearchService(client=client)
+        with patch("app.api.endpoints.flight_service", svc):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                res = await ac.get(
+                    "/api/v1/routes/quick-search"
+                    "?departure_date=2026-12-05&destination=HKG&hubs=BJS,SHA&return_date=2026-12-19"
+                )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["tabs"]["recommend"] == []
+    assert data["tabs"]["risk"] == []
+    assert data["return_tabs"] is None
+    assert "MOW0512HKG19121" in data["manual_search_url"]
+    assert "marker=765617" in data["manual_search_url"]
+    assert "HKG1912MOW" in data["return_manual_search_url"]
+    assert any("AVIASALES_TOKEN" in reason for reason in data["empty_reasons"])
+
+
+@pytest.mark.asyncio
 async def test_search_with_mocked_data_api():
     """Test full search flow with mock Travelpayouts Data API responses."""
     mock_client = AviasalesDataClient(token="test_token_123")
@@ -163,11 +188,16 @@ async def test_search_with_mocked_data_api():
 
     assert result.neighbor_dates is not None
     assert len(result.neighbor_dates) == 2
+    for package in all_pkgs:
+        assert package.verify_price is not None
+        assert package.verify_price.title == "проверить актуальную цену"
+        assert "marker=765617" in package.verify_price.url
+        assert "1011" in package.verify_price.url
 
 
 @pytest.mark.asyncio
 async def test_basket_price_calculation():
-    basket_tk, conf_tk, flags_tk = calculate_basket_price(
+    basket_tk = calculate_basket_price(
         fare_per_pax=30000,
         num_pax=2,
         num_legs=2,
@@ -175,10 +205,11 @@ async def test_basket_price_calculation():
         baggage=BaggageChoice.CHECKED_20KG,
         seats=SeatChoice.YES,
     )
-    assert basket_tk == 63600.0
-    assert conf_tk.value == "exact"
+    assert basket_tk.full_basket_rub == 60000.0
+    assert basket_tk.confidence.value == "unknown"
+    assert any("не угадываем" in flag or "неизвест" in flag.lower() for flag in basket_tk.flags)
 
-    basket_pc, conf_pc, flags_pc = calculate_basket_price(
+    basket_pc = calculate_basket_price(
         fare_per_pax=20000,
         num_pax=1,
         num_legs=1,
@@ -186,10 +217,11 @@ async def test_basket_price_calculation():
         baggage=BaggageChoice.CHECKED_20KG,
         seats=SeatChoice.NONE,
     )
-    assert basket_pc == 23900.0
-    assert conf_pc.value == "partial"
+    assert basket_pc.full_basket_rub == 20000.0
+    assert basket_pc.confidence.value == "unknown"
+    assert any("PC" in flag for flag in basket_pc.flags)
 
-    basket_unk, conf_unk, flags_unk = calculate_basket_price(
+    basket_unk = calculate_basket_price(
         fare_per_pax=20000,
         num_pax=1,
         num_legs=1,
@@ -197,8 +229,9 @@ async def test_basket_price_calculation():
         baggage=BaggageChoice.CHECKED_20KG,
         seats=SeatChoice.NONE,
     )
-    assert conf_unk.value == "unknown"
-    assert any("Багаж не учтён" in f for f in flags_unk)
+    assert basket_unk.confidence.value == "unknown"
+    assert basket_unk.full_basket_rub == 20000.0
+    assert any("Багаж не учтён" in flag for flag in basket_unk.flags)
 
 
 def test_dual_cta_rules():

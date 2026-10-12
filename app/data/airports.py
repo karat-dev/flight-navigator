@@ -11,6 +11,14 @@ AIRPORTS_DB: Dict[str, AirportInfo] = {
     "SAW": AirportInfo(code="SAW", name="Sabiha Gokcen International Airport", city="Istanbul", country="Turkey"),
     # Phuket airport
     "HKT": AirportInfo(code="HKT", name="Phuket International Airport", city="Phuket", country="Thailand"),
+    # Beijing
+    "PEK": AirportInfo(code="PEK", name="Beijing Capital International Airport", city="Beijing", country="China"),
+    "PKX": AirportInfo(code="PKX", name="Beijing Daxing International Airport", city="Beijing", country="China"),
+    # Shanghai
+    "SHA": AirportInfo(code="SHA", name="Shanghai Hongqiao International Airport", city="Shanghai", country="China"),
+    "PVG": AirportInfo(code="PVG", name="Shanghai Pudong International Airport", city="Shanghai", country="China"),
+    # Hong Kong
+    "HKG": AirportInfo(code="HKG", name="Hong Kong International Airport", city="Hong Kong", country="China"),
 }
 
 CITIES_DB: Dict[str, CityInfo] = {
@@ -31,6 +39,24 @@ CITIES_DB: Dict[str, CityInfo] = {
         name="Phuket",
         country="Thailand",
         airports=[AIRPORTS_DB["HKT"]],
+    ),
+    "BJS": CityInfo(
+        code="BJS",
+        name="Beijing",
+        country="China",
+        airports=[AIRPORTS_DB["PEK"], AIRPORTS_DB["PKX"]],
+    ),
+    "SHA": CityInfo(
+        code="SHA",
+        name="Shanghai",
+        country="China",
+        airports=[AIRPORTS_DB["SHA"], AIRPORTS_DB["PVG"]],
+    ),
+    "HKG": CityInfo(
+        code="HKG",
+        name="Hong Kong",
+        country="China",
+        airports=[AIRPORTS_DB["HKG"]],
     ),
 }
 

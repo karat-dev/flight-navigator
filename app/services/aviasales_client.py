@@ -6,6 +6,15 @@ from datetime import date, datetime
 from app.core.config import settings
 
 
+def redact_secret(text: str, extra_token: Optional[str] = None) -> str:
+    """Keep the Data API token out of errors and responses."""
+    redacted = text
+    for token in (settings.AVIASALES_TOKEN, extra_token):
+        if token and token in redacted:
+            redacted = redacted.replace(token, "***")
+    return redacted
+
+
 class AviasalesAPIError(Exception):
     def __init__(self, message: str, status_code: Optional[int] = None):
         super().__init__(message)
@@ -92,7 +101,8 @@ def normalize_v3_item(item: Dict[str, Any], origin: str, destination: str) -> Di
         "destination": destination,
         "gate": item.get("gate"),
         "link": link,
-        "created_at": item.get("created_at"),
+        "created_at": item.get("created_at") or item.get("found_at"),
+        "found_at": item.get("found_at") or item.get("created_at"),
         "api_version": "v3",
         "itinerary_airports": airports,
     }
@@ -114,7 +124,8 @@ def normalize_v2_item(item: Dict[str, Any], origin: str, destination: str) -> Di
         "destination": item.get("destination") or destination,
         "gate": item.get("gate"),
         "link": None,
-        "created_at": item.get("created_at"),
+        "created_at": item.get("created_at") or item.get("found_at"),
+        "found_at": item.get("found_at") or item.get("created_at"),
         "api_version": "v2",
         "itinerary_airports": [],
     }
@@ -210,7 +221,10 @@ class AviasalesDataClient:
                 res = await client.get(url, params=params)
                 if res.status_code != 200:
                     raise AviasalesAPIError(
-                        f"Aviasales Data API v3 returned status {res.status_code}: {res.text[:200]}",
+                        redact_secret(
+                            f"Aviasales Data API v3 returned status {res.status_code}: {res.text[:200]}",
+                            self.token,
+                        ),
                         status_code=res.status_code,
                     )
                 data = res.json()
@@ -219,7 +233,7 @@ class AviasalesDataClient:
                     raise AviasalesAPIError(f"Data API v3 error: {err}")
                 return data.get("data") or []
         except httpx.RequestError as e:
-            raise AviasalesAPIError(f"Network error connecting to Data API v3: {str(e)}")
+            raise AviasalesAPIError(redact_secret(f"Network error connecting to Data API v3: {str(e)}", self.token))
 
     async def get_latest_prices(
         self,
@@ -256,7 +270,10 @@ class AviasalesDataClient:
                 res = await client.get(url, params=params)
                 if res.status_code != 200:
                     raise AviasalesAPIError(
-                        f"Aviasales Data API returned status {res.status_code}: {res.text[:200]}",
+                        redact_secret(
+                            f"Aviasales Data API returned status {res.status_code}: {res.text[:200]}",
+                            self.token,
+                        ),
                         status_code=res.status_code,
                     )
                 data = res.json()
@@ -265,7 +282,7 @@ class AviasalesDataClient:
                     raise AviasalesAPIError(f"Data API error: {err}")
                 return data.get("data", [])
         except httpx.RequestError as e:
-            raise AviasalesAPIError(f"Network error connecting to Data API: {str(e)}")
+            raise AviasalesAPIError(redact_secret(f"Network error connecting to Data API: {str(e)}", self.token))
 
     async def fetch_route_prices(
         self,

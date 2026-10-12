@@ -1,0 +1,1030 @@
+{
+  "collection_checked_at": "2026-10-12",
+  "collection_note": "Сбор 12.10.2026 из приложенной сверки правил. Страницы целиком были открыты только у Уральских авиалиний и Sichuan Airlines; по остальным перевозчикам в сверке — выдержки официальных страниц. Цифры, которых в сверке нет, сюда не добавлялись. Неофициальные цифры (Mahan 30 кг, U6 «от 35/45 USD», питание Победы 490 ₽, негабарит TK как цена места) в суммы не ставятся. Конвертации в рубли нет. Перед продакшеном сверку стоит открыть заново.",
+  "airlines": [
+    {
+      "iata": "TK",
+      "name": "Turkish Airlines",
+      "name_ru": "Turkish Airlines",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": "EcoFly",
+          "checked_baggage": {
+            "display": "на международных рейсах по общему правилу нормы нет; на части маршрутов 1×23 кг или 10 кг — зависит от направления",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "approx",
+            "source_url": "https://www.turkishairlines.com/en-at/any-questions/checked-baggage/",
+            "checked_at": "2026-10-12",
+            "note": "Общее правило и исключения по направлению. Одну норму на все рейсы не фиксируем."
+          },
+          "cabin_baggage": {
+            "display": "8 кг",
+            "included": true,
+            "pieces": null,
+            "weight_kg_each": 8,
+            "total_weight_kg": 8,
+            "confidence": "confirmed",
+            "source_url": "https://www.turkishairlines.com/en-int/flights/fly-different/economy-class/more-information-on-economy-class-that-suits-you/",
+            "checked_at": "2026-10-12",
+            "note": "В сверке ручная кладь указана для эконома целиком, не отдельной строкой бренда."
+          },
+          "seat": {
+            "display": "стандартное место для EcoFly платное, сумма не подтверждена",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.turkishairlines.com/en-int/any-questions/fare-rules/index.html",
+            "checked_at": "2026-10-12",
+            "note": "Бесплатное стандартное место в сверке указано только для ExtraFly и PrimeFly."
+          }
+        },
+        {
+          "name": "ExtraFly",
+          "checked_baggage": {
+            "display": "1×23 кг (piece) или +10 кг на weight-маршрутах",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "approx",
+            "source_url": "https://www.turkishairlines.com/en-at/any-questions/checked-baggage/",
+            "checked_at": "2026-10-12",
+            "note": "Две системы нормы. Килограммы в расчёт «хватит ли 23 кг на любом маршруте» не подставляем."
+          },
+          "cabin_baggage": {
+            "display": "8 кг",
+            "included": true,
+            "pieces": null,
+            "weight_kg_each": 8,
+            "total_weight_kg": 8,
+            "confidence": "confirmed",
+            "source_url": "https://www.turkishairlines.com/en-int/flights/fly-different/economy-class/more-information-on-economy-class-that-suits-you/",
+            "checked_at": "2026-10-12",
+            "note": "В сверке ручная кладь указана для эконома целиком, не отдельной строкой бренда."
+          },
+          "seat": {
+            "display": "стандартное место бесплатно",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "confirmed",
+            "source_url": "https://www.turkishairlines.com/en-int/any-questions/fare-rules/index.html",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "PrimeFly",
+          "checked_baggage": {
+            "display": "норма зарегистрированного багажа PrimeFly в сверке отдельно не указана",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://www.turkishairlines.com/en-int/flights/fly-different/economy-class/more-information-on-economy-class-that-suits-you/",
+            "checked_at": "2026-10-12",
+            "note": "Не копируем норму ExtraFly на PrimeFly."
+          },
+          "cabin_baggage": {
+            "display": "8 кг",
+            "included": true,
+            "pieces": null,
+            "weight_kg_each": 8,
+            "total_weight_kg": 8,
+            "confidence": "confirmed",
+            "source_url": "https://www.turkishairlines.com/en-int/flights/fly-different/economy-class/more-information-on-economy-class-that-suits-you/",
+            "checked_at": "2026-10-12",
+            "note": "В сверке ручная кладь указана для эконома целиком, не отдельной строкой бренда."
+          },
+          "seat": {
+            "display": "стандартное место бесплатно",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "confirmed",
+            "source_url": "https://www.turkishairlines.com/en-int/any-questions/fare-rules/index.html",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "доплата за место багажа не подтверждена: на сайте только калькулятор",
+        "amount": null,
+        "currency": null,
+        "max_piece_weight_kg": null,
+        "confidence": "unknown",
+        "source_url": "https://www.turkishairlines.com/en-at/any-questions/checked-baggage/",
+        "checked_at": "2026-10-12",
+        "note": "В сверке упомянут негабарит 90 USD. Это не цена обычного места, в корзину не ставим."
+      },
+      "seat_price": {
+        "display": "стандартное место бесплатно только в ExtraFly и PrimeFly; цена для EcoFly не подтверждена",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://www.turkishairlines.com/en-int/any-questions/fare-rules/index.html",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "notes": [
+        {
+          "display": "Touristanbul: бесплатная экскурсия при стыковке международный→международный в IST 6–24 ч, оба рейса в одном PNR, билет 235-, нужен легальный въезд в Турцию.",
+          "confidence": "confirmed",
+          "source_url": "https://www.turkishairlines.com/en-int/flights/fly-different/touristanbul/faq/",
+          "checked_at": "2026-10-12",
+          "note": "Это не цена билета и не доплата за багаж."
+        }
+      ]
+    },
+    {
+      "iata": "EY",
+      "name": "Etihad",
+      "name_ru": "Etihad",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": "Basic",
+          "checked_baggage": {
+            "display": "нет",
+            "included": false,
+            "pieces": 0,
+            "weight_kg_each": null,
+            "total_weight_kg": 0,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihadhub.com/en-ae/products/fare-brands",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "1×7 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 7,
+            "total_weight_kg": 7,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihad.com/en-am/help/baggage-information",
+            "checked_at": "2026-10-12",
+            "note": "В сверке ручная кладь указана для эконома целиком."
+          },
+          "seat": {
+            "display": "платно, сумма не подтверждена",
+            "included": false,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.etihad.com/en-us/help/faq/fares",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Value",
+          "checked_baggage": {
+            "display": "25 кг",
+            "included": true,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": 25,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihadhub.com/en-ae/products/fare-brands",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "1×7 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 7,
+            "total_weight_kg": 7,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihad.com/en-am/help/baggage-information",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "платно, сумма не подтверждена",
+            "included": false,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.etihad.com/en-us/help/faq/fares",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Comfort",
+          "checked_baggage": {
+            "display": "30 кг",
+            "included": true,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": 30,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihadhub.com/en-ae/products/fare-brands",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "1×7 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 7,
+            "total_weight_kg": 7,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihad.com/en-am/help/baggage-information",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "стандартное место бесплатно",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihad.com/en-us/help/faq/fares",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Deluxe",
+          "checked_baggage": {
+            "display": "40 кг, может зависеть от направления",
+            "included": true,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": 40,
+            "confidence": "approx",
+            "source_url": "https://www.etihadhub.com/en-ae/products/fare-brands",
+            "checked_at": "2026-10-12",
+            "note": "В сверке прямо сказано, что норма может зависеть от направления."
+          },
+          "cabin_baggage": {
+            "display": "1×7 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 7,
+            "total_weight_kg": 7,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihad.com/en-am/help/baggage-information",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "extra legroom бесплатно",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "confirmed",
+            "source_url": "https://www.etihad.com/en-us/help/faq/fares",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "в аэропорту 260 USD за место до 23 кг (билеты с 23.04.2026)",
+        "amount": 260,
+        "currency": "USD",
+        "max_piece_weight_kg": 23,
+        "confidence": "confirmed",
+        "source_url": "https://www.etihad.com/en-am/help/baggage-information",
+        "checked_at": "2026-10-12",
+        "note": "Онлайн в сверке «до −65%». Точную онлайн-цену не ставим и в рубли не переводим. Для запроса тяжелее 23 кг эту цену не применяем."
+      },
+      "seat_price": {
+        "display": "Basic и Value — платно, сумма не подтверждена; Comfort — стандартное бесплатно; Deluxe — extra legroom бесплатно",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://www.etihad.com/en-us/help/faq/fares",
+        "checked_at": "2026-10-12",
+        "note": "Сводка по брендам. Цену платного места не выдумываем."
+      },
+      "notes": [
+        {
+          "display": "Abu Dhabi Stopover: 1–2 ночи в отеле 3–4* при перелёте туда-обратно Etihad через AUH; без завтрака и трансфера, сбор 15 AED за ночь, бронь минимум за 3 дня.",
+          "confidence": "confirmed",
+          "source_url": "https://www.etihad.com/en-ae/abu-dhabi/stopover",
+          "checked_at": "2026-10-12",
+          "note": "Сбор 15 AED — условие стоповера, не доплата за багаж и не курс в рубли."
+        }
+      ]
+    },
+    {
+      "iata": "CZ",
+      "name": "China Southern",
+      "name_ru": "China Southern",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": null,
+          "checked_baggage": {
+            "display": "бренды эконома не подтверждены. Для маршрутов «Россия» в одной таблице 2×23 кг, в PDF для части Азии и европейской России 1×32 кг. Цифры противоречат друг другу, в расчёт не берём.",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://www.csair.com/en/orders/order/kpxlgd/resource/fa45a00b50f48cf15f871f2a335a2875.pdf",
+            "checked_at": "2026-10-12",
+            "note": "Вторая таблица: https://www.csair.cn/sg/en/faq/mfxltype.shtml. Пока противоречие не снято, норму не выбираем."
+          },
+          "cabin_baggage": {
+            "display": "норма взрослой ручной клади не подтверждена",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://www.csair.com/ca/en/tourguide/faq/baggage/czjtsxl.shtml",
+            "checked_at": "2026-10-12",
+            "note": "На официальной странице в сверке нашлась норма для младенца 10 кг. На взрослого её не переносим."
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.csair.cn/sg/en/faq/mfxltype.shtml",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "цена первого дополнительного места не выбрана: в сверке одновременно 1000 CNY (таблица для Канады), 800 CNY, 110 EUR и 130 USD",
+        "amount": null,
+        "currency": null,
+        "max_piece_weight_kg": null,
+        "confidence": "unknown",
+        "source_url": "https://www.csair.com/en/orders/order/kpxlgd/resource/fa45a00b50f48cf15f871f2a335a2875.pdf",
+        "checked_at": "2026-10-12",
+        "note": "Противоречие источников. Ни одну из сумм не делаем ценой доплаты."
+      },
+      "seat_price": {
+        "display": "выбор места не подтверждён",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://www.csair.cn/sg/en/faq/mfxltype.shtml",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "notes": []
+    },
+    {
+      "iata": "3U",
+      "name": "Sichuan Airlines",
+      "name_ru": "Sichuan Airlines",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": "Стандартный эконом",
+          "checked_baggage": {
+            "display": "1×23 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 23,
+            "total_weight_kg": 23,
+            "confidence": "confirmed",
+            "source_url": "https://www.sichuanair.com/affiche/702.html",
+            "checked_at": "2026-10-12",
+            "note": "Правило с 02.04.2024. Страница в сверке была открыта целиком."
+          },
+          "cabin_baggage": {
+            "display": "норма ручной клади не подтверждена",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://www.sichuanair.com/affiche/702.html",
+            "checked_at": "2026-10-12",
+            "note": "Неофициальный сайт пишет 8 кг. Эту цифру не используем."
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.sichuanair.com/affiche/702.html",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Улучшенный эконом",
+          "checked_baggage": {
+            "display": "2×23 кг",
+            "included": true,
+            "pieces": 2,
+            "weight_kg_each": 23,
+            "total_weight_kg": 46,
+            "confidence": "confirmed",
+            "source_url": "https://www.sichuanair.com/affiche/702.html",
+            "checked_at": "2026-10-12",
+            "note": "Правило с 02.04.2024. Страница в сверке была открыта целиком."
+          },
+          "cabin_baggage": {
+            "display": "норма ручной клади не подтверждена",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://www.sichuanair.com/affiche/702.html",
+            "checked_at": "2026-10-12",
+            "note": "Неофициальный сайт пишет 8 кг. Эту цифру не используем."
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.sichuanair.com/affiche/702.html",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "доплата за багаж не подтверждена",
+        "amount": null,
+        "currency": null,
+        "max_piece_weight_kg": null,
+        "confidence": "unknown",
+        "source_url": "https://www.sichuanair.com/affiche/702.html",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "seat_price": {
+        "display": "выбор места не подтверждён",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://www.sichuanair.com/affiche/702.html",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "notes": []
+    },
+    {
+      "iata": "2S",
+      "name": "Southwind",
+      "name_ru": "Southwind",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": "Eco",
+          "checked_baggage": {
+            "display": "нет",
+            "included": false,
+            "pieces": 0,
+            "weight_kg_each": null,
+            "total_weight_kg": 0,
+            "confidence": "confirmed",
+            "source_url": "https://southwindairlines.com/ru/tariffs",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "8 кг, 40×30×20 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 8,
+            "total_weight_kg": 8,
+            "confidence": "confirmed",
+            "source_url": "https://southwindairlines.com/ru/baggage/hand-luggage",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "платно, сумма не подтверждена",
+            "included": false,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://southwindairlines.com/ru/tariffs",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Standard",
+          "checked_baggage": {
+            "display": "1×20 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 20,
+            "total_weight_kg": 20,
+            "confidence": "confirmed",
+            "source_url": "https://southwindairlines.com/ru/tariffs",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "8 кг, 40×30×20 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 8,
+            "total_weight_kg": 8,
+            "confidence": "confirmed",
+            "source_url": "https://southwindairlines.com/ru/baggage/hand-luggage",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "платно, сумма не подтверждена",
+            "included": false,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://southwindairlines.com/ru/tariffs",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Premium",
+          "checked_baggage": {
+            "display": "1×20 кг на southwindairlines.com; на southwind.ru указано до 30 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 20,
+            "total_weight_kg": 20,
+            "confidence": "approx",
+            "source_url": "https://southwindairlines.com/ru/tariffs",
+            "checked_at": "2026-10-12",
+            "note": "30 кг с southwind.ru не используем: официальность домена в сверке не проверена."
+          },
+          "cabin_baggage": {
+            "display": "10 кг, 55×40×20 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 10,
+            "total_weight_kg": 10,
+            "confidence": "approx",
+            "source_url": "https://southwindairlines.com/ru/baggage/hand-luggage",
+            "checked_at": "2026-10-12",
+            "note": "В источниках сверки рядом southwind.ru. Норму оставляем с пометкой приблизительно."
+          },
+          "seat": {
+            "display": "бесплатно по southwind.ru",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "approx",
+            "source_url": "https://southwind.ru/",
+            "checked_at": "2026-10-12",
+            "note": "Официальность домена southwind.ru в сверке не проверена."
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "на странице тарифов есть «40 €», к какой услуге относится — не подтверждено",
+        "amount": null,
+        "currency": null,
+        "max_piece_weight_kg": null,
+        "confidence": "unknown",
+        "source_url": "https://southwindairlines.com/ru/tariffs",
+        "checked_at": "2026-10-12",
+        "note": "40 € в доплату за багаж не записываем."
+      },
+      "seat_price": {
+        "display": "Eco и Standard — платно, сумма не подтверждена; Premium — бесплатно только по southwind.ru",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://southwindairlines.com/ru/tariffs",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "notes": []
+    },
+    {
+      "iata": "DP",
+      "name": "Pobeda",
+      "name_ru": "Победа",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": "Базовый",
+          "checked_baggage": {
+            "display": "нет",
+            "included": false,
+            "pieces": 0,
+            "weight_kg_each": null,
+            "total_weight_kg": 0,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+            "checked_at": "2026-10-12",
+            "note": "Состав тарифов в сверке сверялся и с неофициальным гидом pobedaairways.com. Поэтому норма помечена как приблизительная."
+          },
+          "cabin_baggage": {
+            "display": "36×30×27 см, вес в найденном источнике не указан",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/luggage_baggage",
+            "checked_at": "2026-10-12",
+            "note": "Вес ручной клади не выдумываем."
+          },
+          "seat": {
+            "display": "на международных рейсах от 4 €",
+            "included": false,
+            "amount": 4,
+            "currency": "EUR",
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+            "checked_at": "2026-10-12",
+            "note": "Сумма «от», не финальная цена выбора места. В рубли не переводим."
+          }
+        },
+        {
+          "name": "Выгодный",
+          "checked_baggage": {
+            "display": "1×10 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 10,
+            "total_weight_kg": 10,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+            "checked_at": "2026-10-12",
+            "note": "Состав тарифов в сверке сверялся и с неофициальным гидом. Норма приблизительная."
+          },
+          "cabin_baggage": {
+            "display": "36×30×27 см, вес в найденном источнике не указан",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/luggage_baggage",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "бесплатно онлайн",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+            "checked_at": "2026-10-12",
+            "note": "Рядом в источниках неофициальный гид. Пометка приблизительная."
+          }
+        },
+        {
+          "name": "Максимум",
+          "checked_baggage": {
+            "display": "1×20 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 20,
+            "total_weight_kg": 20,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+            "checked_at": "2026-10-12",
+            "note": "Состав тарифов в сверке сверялся и с неофициальным гидом. Норма приблизительная."
+          },
+          "cabin_baggage": {
+            "display": "36×30×27 см, вес в найденном источнике не указан",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/luggage_baggage",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "любое место бесплатно, кроме 1ABC и 2DEF",
+            "included": true,
+            "amount": null,
+            "currency": null,
+            "confidence": "approx",
+            "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+            "checked_at": "2026-10-12",
+            "note": "Цена исключённых мест 1ABC/2DEF не подтверждена."
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "международные рейсы: на сайте от 40 €, в аэропорту 65 €",
+        "amount": 40,
+        "currency": "EUR",
+        "max_piece_weight_kg": null,
+        "confidence": "approx",
+        "source_url": "https://www.flypobeda.ru/information/luggage_baggage",
+        "checked_at": "2026-10-12",
+        "note": "Сумма «от», не финальная цена. В аэропорту 65 €. В рубли не переводим."
+      },
+      "add_bag_separate_tickets": {
+        "display": "на сборке из отдельных билетов багаж оплачивается заново; трансферный тариф на сайте от 80 €, в аэропорту 130 €",
+        "amount": 80,
+        "currency": "EUR",
+        "max_piece_weight_kg": null,
+        "confidence": "approx",
+        "source_url": "https://www.flypobeda.ru/information/luggage_baggage",
+        "checked_at": "2026-10-12",
+        "note": "Трансферный багаж в сверке указан как более дорогой. В рубли не переводим."
+      },
+      "seat_price": {
+        "display": "на международных рейсах от 4 €; в тарифе Выгодный бесплатно онлайн; в тарифе Максимум бесплатно любое место кроме 1ABC/2DEF",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "approx",
+        "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+        "checked_at": "2026-10-12",
+        "note": "Единую доплату за место для неизвестного тарифа не выбираем. 4 € — ориентир «от» только для платного выбора."
+      },
+      "notes": [
+        {
+          "display": "Питание на международных рейсах платное. Цена сэндвича с неофициального гида в справочник цен не внесена.",
+          "confidence": "unknown",
+          "source_url": "https://www.flypobeda.ru/information/rates-and-conditions",
+          "checked_at": "2026-10-12",
+          "note": "Неофициальный гид pobedaairways.com в сверке упоминает сэндвичи от 490 ₽. Сумму не используем."
+        }
+      ]
+    },
+    {
+      "iata": "W5",
+      "name": "Mahan Air",
+      "name_ru": "Mahan Air",
+      "excluded_from_recommendations": true,
+      "exclusion_reason": "Mahan Air (W5) исключена из рекомендаций: риск санкций OFAC.",
+      "fare_families": [
+        {
+          "name": null,
+          "checked_baggage": {
+            "display": "норма зарегистрированного багажа официально не подтверждена",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://mahan-air.com.ru/bagazh/",
+            "checked_at": "2026-10-12",
+            "note": "30 кг есть только на неофициальном сайте. В норму и в цену это не ставим. Перевозчик ещё и исключён из рекомендаций."
+          },
+          "cabin_baggage": {
+            "display": "норма ручной клади официально не подтверждена",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://mahan-air.com.ru/bagazh/",
+            "checked_at": "2026-10-12",
+            "note": "5 кг и габарит 55×40×23 на неофициальном сайте не используем."
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://mahan-air.com.ru/bagazh/",
+            "checked_at": "2026-10-12",
+            "note": "Отдельной официальной страницы в сверке нет."
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "доплата за багаж не подтверждена",
+        "amount": null,
+        "currency": null,
+        "max_piece_weight_kg": null,
+        "confidence": "unknown",
+        "source_url": "https://mahan-air.com.ru/bagazh/",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "seat_price": {
+        "display": "выбор места не подтверждён",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://mahan-air.com.ru/bagazh/",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "notes": []
+    },
+    {
+      "iata": "U6",
+      "name": "Ural Airlines",
+      "name_ru": "Уральские авиалинии",
+      "excluded_from_recommendations": false,
+      "exclusion_reason": null,
+      "fare_families": [
+        {
+          "name": "Промо",
+          "checked_baggage": {
+            "display": "нет",
+            "included": false,
+            "pieces": 0,
+            "weight_kg_each": null,
+            "total_weight_kg": 0,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": "Страница в сверке была открыта целиком. На Промо багаж оплачивается за каждый сегмент; сама сумма сверхнормы официально не подтверждена."
+          },
+          "cabin_baggage": {
+            "display": "1×10 кг, 55×40×25 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 10,
+            "total_weight_kg": 10,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": "В сверке ручная кладь указана для перевозчика, не отдельной строкой бренда."
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": "В сверке отдельной цены места нет."
+          }
+        },
+        {
+          "name": "Эконом",
+          "checked_baggage": {
+            "display": "1×23 кг",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 23,
+            "total_weight_kg": 23,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "1×10 кг, 55×40×25 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 10,
+            "total_weight_kg": 10,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Эконом-Буст",
+          "checked_baggage": {
+            "display": "норма зарегистрированного багажа для Эконом-Буст в сверке не указана",
+            "included": null,
+            "pieces": null,
+            "weight_kg_each": null,
+            "total_weight_kg": null,
+            "confidence": "unknown",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": "Не копируем норму тарифа Эконом."
+          },
+          "cabin_baggage": {
+            "display": "1×10 кг, 55×40×25 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 10,
+            "total_weight_kg": 10,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": "Ручная кладь в сверке дана на перевозчика. К багажу тарифа это не относится."
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        },
+        {
+          "name": "Премиум эконом",
+          "checked_baggage": {
+            "display": "2×23 кг",
+            "included": true,
+            "pieces": 2,
+            "weight_kg_each": 23,
+            "total_weight_kg": 46,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "cabin_baggage": {
+            "display": "1×10 кг, 55×40×25 см",
+            "included": true,
+            "pieces": 1,
+            "weight_kg_each": 10,
+            "total_weight_kg": 10,
+            "confidence": "confirmed",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          },
+          "seat": {
+            "display": "выбор места не подтверждён",
+            "included": null,
+            "amount": null,
+            "currency": null,
+            "confidence": "unknown",
+            "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+            "checked_at": "2026-10-12",
+            "note": null
+          }
+        }
+      ],
+      "add_bag": {
+        "display": "доплата за багаж не подтверждена. Для Промо она считается по тарифам сверхнормы и на каждом сегменте отдельно",
+        "amount": null,
+        "currency": null,
+        "max_piece_weight_kg": null,
+        "confidence": "unknown",
+        "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+        "checked_at": "2026-10-12",
+        "note": "Цифры «от 35 USD за 10 кг и 45 USD за 23 кг» в сверке только с неофициального сайта. В цену не ставим."
+      },
+      "seat_price": {
+        "display": "выбор места не подтверждён",
+        "included": null,
+        "amount": null,
+        "currency": null,
+        "confidence": "unknown",
+        "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+        "checked_at": "2026-10-12",
+        "note": null
+      },
+      "notes": [
+        {
+          "display": "На тарифе Промо багаж оплачивается за каждый сегмент. Сумма сверхнормы официально не подтверждена.",
+          "confidence": "confirmed",
+          "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+          "checked_at": "2026-10-12",
+          "note": null
+        },
+        {
+          "display": "Питание на борту — дополнительная услуга, цена не подтверждена.",
+          "confidence": "unknown",
+          "source_url": "https://www.uralairlines.ru/rules/provoz-bagazha/normy-besplatnogo-provoza-bagazha-gabarity-bagazha/",
+          "checked_at": "2026-10-12",
+          "note": "В сверке цена питания не найдена. Отдельную страницу питания не подставляем."
+        }
+      ]
+    }
+  ]
+}

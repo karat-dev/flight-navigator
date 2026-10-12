@@ -65,4 +65,49 @@ CITY_TRANSIT_GUIDES: Dict[str, Dict[str, Any]] = {
             ),
         },
     },
+    "BJS": {
+        "city_name": "Пекин",
+        "visa_disclaimer": "Ориентир, не проверка паспорта. Правила могут меняться — проверяйте официальные источники перед поездкой.",
+        "visa_info": {
+            "source_url": None,
+            "last_checked": "2026-10-12",
+            "confidence": "unknown",
+            "notes": "Транзитные и визовые правила Пекина в этот справочник не заносились.",
+        },
+        "airport_change": {
+            "airports": ["PEK", "PKX"],
+            "minimum_recommended_transfer_hours": None,
+            "note": "PEK и PKX — разные аэропорты. Подтверждённого минимума часов нет. Порог 6 часов относится к смене IST и SAW.",
+        },
+    },
+    "SHA": {
+        "city_name": "Шанхай",
+        "visa_disclaimer": "Ориентир, не проверка паспорта. Правила могут меняться — проверяйте официальные источники перед поездкой.",
+        "visa_info": {
+            "source_url": None,
+            "last_checked": "2026-10-12",
+            "confidence": "unknown",
+            "notes": "Транзитные и визовые правила Шанхая в этот справочник не заносились.",
+        },
+        "airport_change": {
+            "airports": ["SHA", "PVG"],
+            "minimum_recommended_transfer_hours": None,
+            "note": "SHA (Хунцяо) и PVG (Пудун) — разные аэропорты. Подтверждённого минимума часов нет.",
+        },
+    },
+    "HKG": {
+        "city_name": "Гонконг",
+        "visa_disclaimer": "Ориентир, не проверка паспорта. Правила могут меняться — проверяйте официальные источники перед поездкой.",
+        "visa_info": {
+            "source_url": None,
+            "last_checked": "2026-10-12",
+            "confidence": "unknown",
+            "notes": "Транзитные и визовые правила Гонконга в этот справочник не заносились.",
+        },
+        "airport_change": {
+            "airports": ["HKG"],
+            "minimum_recommended_transfer_hours": None,
+            "note": "В справочнике один аэропорт HKG.",
+        },
+    },
 }

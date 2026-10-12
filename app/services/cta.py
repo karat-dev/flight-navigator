@@ -29,11 +29,14 @@ def build_aviasales_deep_link(
         return "0101"
 
     d1 = to_ddmm(depart_date_str)
-    
+
     if hub and second_depart_date_str:
         d2 = to_ddmm(second_depart_date_str)
         mid = second_origin or hub
         route_part = f"{origin}{d1}{hub}-{mid}{d2}{destination}{passengers}"
+    elif return_date_str:
+        d2 = to_ddmm(return_date_str)
+        route_part = f"{origin}{d1}{destination}{d2}{passengers}"
     else:
         route_part = f"{origin}{d1}{destination}{passengers}"
 
@@ -54,6 +57,11 @@ def get_airline_official_url(carrier_code: Optional[str]) -> Optional[str]:
         "QR": "https://www.qatarairways.com",
         "EK": "https://www.emirates.com",
         "FZ": "https://www.flydubai.com",
+        "EY": "https://www.etihad.com",
+        "CZ": "https://www.csair.com",
+        "3U": "https://www.sichuanair.com",
+        "2S": "https://southwindairlines.com",
+        "U6": "https://www.uralairlines.ru",
     }
     return urls.get(code)
 
@@ -156,3 +164,30 @@ def build_dual_cta(
             price_rub=full_basket_rub,
         )
         return DualCTA(primary=primary, secondary=None)
+
+
+def build_verify_price_cta(
+    origin: str,
+    destination: str,
+    depart_date_str: str,
+    passengers: int,
+    hub: Optional[str] = None,
+    second_depart_date_str: Optional[str] = None,
+    second_origin: Optional[str] = None,
+) -> CTAInfo:
+    """Always the requested date and the partner marker. Not the neighbour-date fare."""
+    url = build_aviasales_deep_link(
+        origin=origin,
+        destination=destination,
+        depart_date_str=depart_date_str,
+        hub=hub,
+        second_depart_date_str=second_depart_date_str,
+        second_origin=second_origin,
+        passengers=passengers,
+    )
+    return CTAInfo(
+        title="проверить актуальную цену",
+        url=url,
+        provider_name="Авиасейлс",
+        price_rub=None,
+    )
