@@ -7,7 +7,7 @@ from app.api.endpoints import router as api_router
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="FastAPI Backend for Flight Navigator: MOW–IST–HKT Route Optimizer & Transit Guide",
+    description="FastAPI backend for through tickets vs self-transfer via IST, BJS, SHA and HKG",
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
     docs_url=f"{settings.API_V1_PREFIX}/docs",
     redoc_url=f"{settings.API_V1_PREFIX}/redoc",

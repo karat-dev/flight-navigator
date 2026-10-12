@@ -42,6 +42,22 @@ class PriceConfidence(str, Enum):
     UNKNOWN = "unknown"
 
 
+class RulesConfidence(str, Enum):
+    CONFIRMED = "confirmed"
+    APPROX = "approx"
+    UNKNOWN = "unknown"
+
+
+class Freshness(str, Enum):
+    FRESH = "fresh"
+    POSSIBLY_STALE = "possibly_stale"
+
+
+class DateMatch(str, Enum):
+    EXACT = "exact"
+    NEIGHBOUR = "neighbour"
+
+
 class AirportInfo(BaseModel):
     code: str = Field(..., description="IATA code: SVO, VKO, DME, IST, SAW, HKT")
     name: str = Field(..., description="Airport name")
@@ -75,7 +91,14 @@ class FlightSegment(BaseModel):
     )
     price_rub: float = Field(..., description="Bare price for this leg from Data API")
     source: str = Field("aviasales_data_api", description="Data source")
-    found_at: Optional[str] = Field(None, description="When the price was recorded in cache")
+    found_at: Optional[str] = Field(None, description="When the price was recorded in cache (found_at)")
+    requested_date: Optional[str] = Field(None, description="Date the user asked for, YYYY-MM-DD")
+    date_status: DateMatch = Field(
+        DateMatch.EXACT,
+        description="exact when this fare is on the requested date, neighbour otherwise",
+    )
+    freshness: Freshness = Field(Freshness.POSSIBLY_STALE, description="fresh or possibly_stale from found_at")
+    freshness_note: Optional[str] = Field(None, description="Russian note on cache age")
 
 
 class ConnectionInfo(BaseModel):
@@ -96,6 +119,20 @@ class ConnectionInfo(BaseModel):
     changes_in_api: Optional[int] = Field(None, description="number_of_changes from unified MOW–HKT cache row")
 
 
+class AddonQuote(BaseModel):
+    kind: str = Field(..., description="baggage or seat")
+    display: str = Field(..., description="Russian explanation, including confidence")
+    amount: Optional[float] = Field(None, description="Sourced amount. Null when unknown")
+    currency: Optional[str] = Field(None, description="ISO currency of amount. Not converted to RUB")
+    confidence: RulesConfidence = Field(RulesConfidence.UNKNOWN)
+    source_url: Optional[str] = None
+    checked_at: Optional[str] = Field(None, description="YYYY-MM-DD when this rule was checked")
+    included_in_rub_total: bool = Field(
+        False,
+        description="True only when this addon is already reflected in full_basket_rub",
+    )
+
+
 class CTAInfo(BaseModel):
     title: str = Field(..., description="Button title")
     url: str = Field(..., description="Target deep link")
@@ -114,9 +151,29 @@ class Package(BaseModel):
     segments: List[FlightSegment] = Field(..., description="Legs of the journey")
     connection: ConnectionInfo = Field(..., description="Connection information at hub")
     bare_fare_rub: float = Field(..., description="Base fare without added baggage/seat options")
-    full_basket_rub: float = Field(..., description="Total price with baggage and seat preferences included")
-    currency: str = Field("RUB", description="Currency")
-    price_confidence: PriceConfidence = Field(PriceConfidence.EXACT, description="exact or partial (if baggage costs estimated)")
+    full_basket_rub: float = Field(
+        ...,
+        description="Ruble part of the basket. Foreign bag/seat fees are not converted into this number",
+    )
+    basket_display: str = Field("", description="Ticket plus sourced bag/seat text, with confidence")
+    currency: str = Field("RUB", description="Currency of full_basket_rub")
+    price_confidence: PriceConfidence = Field(
+        PriceConfidence.UNKNOWN,
+        description="exact: ticket only, no extras asked; partial: rules applied but brand or currency is incomplete; unknown: a required fee was not guessed",
+    )
+    rules_confidence: RulesConfidence = Field(
+        RulesConfidence.UNKNOWN,
+        description="confirmed / approx / unknown for the fare rules used in the basket",
+    )
+    addons: List[AddonQuote] = Field(default_factory=list, description="Sourced baggage and seat lines")
+    freshness: Freshness = Field(Freshness.POSSIBLY_STALE)
+    freshness_note: str = Field("")
+    date_status: DateMatch = Field(DateMatch.EXACT)
+    requested_date: Optional[str] = None
+    verify_price: Optional[CTAInfo] = Field(
+        None,
+        description="Deep link titled проверить актуальную цену, on the requested date, with marker",
+    )
     flags: List[str] = Field(default_factory=list, description="User warnings and guidance in Russian")
     cluster_alternatives: List[Dict[str, Any]] = Field(default_factory=list, description="Alternative flights clustered within ±1000 RUB or ~3%")
     cta: DualCTA = Field(..., description="Dual call-to-action deep links")
@@ -140,13 +197,21 @@ class PassengerConfig(BaseModel):
 class RouteSearchRequest(BaseModel):
     departure_date: date = Field(..., description="Date of departure from Moscow (YYYY-MM-DD)")
     origin: str = Field("MOW", description="Origin city or airport code (MOW, SVO, VKO, DME)")
-    hub: str = Field("IST", description="Hub city or airport code (IST, SAW)")
-    destination: str = Field("HKT", description="Destination airport code (HKT)")
+    hub: str = Field("IST", description="Single hub when hubs is empty. IST, BJS, SHA, HKG and their airports")
+    hubs: Optional[List[str]] = Field(
+        None,
+        description="Hubs to build self-transfer through. Overrides hub. IST, BJS/PEK/PKX, SHA/PVG, HKG",
+    )
+    destination: str = Field("HKT", description="Destination city or airport code")
+    return_date: Optional[date] = Field(None, description="When set, also search the return direction")
     flight_class: FlightClass = FlightClass.ECONOMY
     
     # Assembly preset
     layover_preset: LayoverPreset = Field(LayoverPreset.CALM, description="faster | calm | buffer_12h")
-    allow_airport_change: bool = Field(True, description="Allow changing between IST and SAW")
+    allow_airport_change: bool = Field(
+        True,
+        description="Allow a change between airports of the same hub. IST↔SAW keeps the 6 hour floor",
+    )
     
     # Full basket params
     passengers: PassengerConfig = Field(default_factory=PassengerConfig)
@@ -180,3 +245,16 @@ class RouteSearchResponse(BaseModel):
     neighbor_dates: Optional[List[NeighborDateResult]] = None
     empty_reasons: List[str] = Field(default_factory=list)
     manual_search_url: Optional[str] = None
+    comparison_note: Optional[str] = Field(
+        None,
+        description="Through ticket versus self-transfer on the requested date",
+    )
+    return_tabs: Optional[TabsResult] = None
+    return_empty_reasons: List[str] = Field(default_factory=list)
+    return_comparison_note: Optional[str] = None
+    return_neighbor_dates: Optional[List[NeighborDateResult]] = None
+    return_manual_search_url: Optional[str] = None
+    exclusions: List[str] = Field(
+        default_factory=list,
+        description="Carriers dropped from recommend and risk, with the reason",
+    )
