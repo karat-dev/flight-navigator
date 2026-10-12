@@ -1,0 +1,50 @@
+name: Duffel reference check
+
+# workflow_dispatch for manual reruns.
+# The push trigger is limited to this feature branch so the search runs
+# when the branch is pushed, and does not run on main.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/duffel-refcheck-de12
+
+permissions:
+  contents: read
+
+jobs:
+  refcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create Duffel offer requests
+        env:
+          DUFFEL_TOKEN: ${{ secrets.DUFFEL_TOKEN }}
+        run: python tools/duffel_refcheck/refcheck.py
+
+      - name: Publish Markdown to job summary
+        if: always()
+        run: |
+          if [ -f tools/duffel_refcheck/out/report.md ]; then
+            cat tools/duffel_refcheck/out/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Duffel reference check did not produce a report." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: duffel-refcheck
+          path: |
+            tools/duffel_refcheck/out/report.md
+            tools/duffel_refcheck/out/offers.json
+          if-no-files-found: warn
