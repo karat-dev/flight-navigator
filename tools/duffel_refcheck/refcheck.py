@@ -184,23 +184,30 @@ def _retry_delay(retry_after: str | None, attempt: int) -> float:
     return min(2.0 ** attempt, 30.0)
 
 
+# This script only runs with a duffel_test_ token. Every amount it reports is
+# sandbox data, including offers owned by a real airline.
+TEST_MODE_PRICE_LABEL = "test-mode (not a real price)"
+
+
 def airline_kind(airline: dict | None) -> str:
+    """Classify the carrier code only. This does not describe price or baggage."""
     airline = airline or {}
     iata = str(airline.get("iata_code") or "").upper()
     name = str(airline.get("name") or "")
     if iata == "ZZ" or "duffel airways" in name.lower():
-        return "synthetic"
+        return "duffel_airways"
     if not iata and not name:
         return "unknown"
-    return "real"
+    return "real_airline"
 
 
-def kind_label(kind: str) -> str:
-    if kind == "synthetic":
-        return "synthetic (Duffel Airways)"
-    if kind == "real":
+def carrier_code_label(kind: str) -> str:
+    """'real airline' means the IATA code exists. It does not mean a live fare."""
+    if kind == "duffel_airways":
+        return "Duffel Airways"
+    if kind == "real_airline":
         return "real airline"
-    return "unknown airline"
+    return "unknown carrier code"
 
 
 def _decimal(value: str | None) -> Decimal | None:
@@ -553,12 +560,6 @@ def project_offer(offer: dict, services: dict, seat_selection: dict, search_tota
     for slc in slices:
         for segment in slc["segments"]:
             carrier_kinds.add(segment["marketing_carrier"]["kind"])
-    if owner["kind"] == "synthetic":
-        data_source = "synthetic"
-    elif owner["kind"] == "real":
-        data_source = "real"
-    else:
-        data_source = "unknown"
     refreshed = {
         "total_amount": offer.get("total_amount"),
         "total_currency": offer.get("total_currency"),
@@ -579,10 +580,11 @@ def project_offer(offer: dict, services: dict, seat_selection: dict, search_tota
         "search_total_currency": None if not price_changed else (search_total or {}).get("total_currency"),
         "price_changed_on_refresh": price_changed,
         "owner": owner,
-        "data_source": data_source,
-        "data_source_label": kind_label(data_source),
+        "price_label": TEST_MODE_PRICE_LABEL,
+        "carrier_code_kind": owner["kind"],
+        "carrier_code_label": carrier_code_label(owner["kind"]),
         "marketing_flights": marketing_flights,
-        "contains_synthetic_marketing_carrier": "synthetic" in carrier_kinds,
+        "contains_duffel_airways_marketing_carrier": "duffel_airways" in carrier_kinds,
         "slices": slices,
         "conditions": {
             "refund_before_departure": _condition(conditions.get("refund_before_departure")),
@@ -703,7 +705,8 @@ def check_route(client: DuffelClient, origin: str, destination: str, departure_d
         projected.append(view)
         print(
             f"  #{index} {_money(view['total_amount'], view['total_currency'])} "
-            f"{view['owner'].get('iata_code')} {view['data_source_label']}",
+            f"{view['owner'].get('iata_code')} {view['price_label']} "
+            f"carrier={view['carrier_code_label']}",
             file=sys.stderr,
         )
     return {
@@ -760,26 +763,28 @@ def render_markdown(report: dict) -> str:
         "Search: Duffel API v2 (`Duffel-Version: v2`), one adult, economy, one-way. "
         "Each route keeps the five cheapest offers by `total_amount`.",
         "",
-        "**Test-mode data may be synthetic.** This run requires a `duffel_test_` token. "
-        "Offers owned by Duffel Airways (IATA `ZZ`) are Duffel's sandbox airline, not a real carrier. "
-        "Offers owned by any other airline are flagged as **real airline**. "
-        "Real-airline rows in test mode still come from airline sandboxes and can differ from live inventory.",
+        "**Every offer is test-mode (not a real price).** This run uses a `duffel_test_` token. "
+        "Duffel generates every offer in test mode, including offers owned by a real airline. "
+        "Prices, included baggage, extra bags, seat selection, and refund or change conditions are sandbox data.",
+        "",
+        "**Real airline** means only that the owner IATA code is a real airline code, not Duffel Airways (`ZZ`). "
+        "It does not mean the price or the baggage are live.",
         "",
         "## Cheapest offer on each route",
         "",
-        "| Route | Date | Cheapest | Owner | Source | Flights |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Route | Date | Cheapest | Owner | Price | Carrier code | Flights |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for route in report["routes"]:
         route_name = f"{route['origin']}-{route['destination']}"
         if route.get("error"):
             lines.append(
-                f"| {_md(route_name)} | {_md(route['departure_date'])} | failed |  |  | {_md(route['error'])} |"
+                f"| {_md(route_name)} | {_md(route['departure_date'])} | failed |  |  |  | {_md(route['error'])} |"
             )
             continue
         if not route["offers"]:
             lines.append(
-                f"| {_md(route_name)} | {_md(route['departure_date'])} | no offers |  |  |  |"
+                f"| {_md(route_name)} | {_md(route['departure_date'])} | no offers |  |  |  |  |"
             )
             continue
         top = route["offers"][0]
@@ -793,7 +798,8 @@ def render_markdown(report: dict) -> str:
                     _md(route["departure_date"]),
                     _md(_money(top["total_amount"], top["total_currency"])),
                     _md(owner_text),
-                    _md(top["data_source_label"]),
+                    _md(top["price_label"]),
+                    _md(top["carrier_code_label"]),
                     _md(", ".join(top["marketing_flights"])),
                 ]
             )
@@ -823,7 +829,7 @@ def render_markdown(report: dict) -> str:
             owner_text = f"{owner.get('name') or '?'} ({owner.get('iata_code') or '?'})"
             lines.append(
                 f"#### {offer['rank']}. {_money(offer['total_amount'], offer['total_currency'])} "
-                f"— {owner_text} — {offer['data_source_label']}"
+                f"— {owner_text} — {offer['price_label']}"
             )
             lines.append("")
             lines.append(f"- Offer id: `{offer['id']}`")
@@ -836,10 +842,14 @@ def render_markdown(report: dict) -> str:
                 )
             if offer.get("detail_error"):
                 lines.append(f"- Priced-offer refresh failed: {offer['detail_error']}")
+            lines.append(f"- Price: {offer['price_label']}")
             lines.append(f"- Owner airline: {owner_text}")
-            lines.append(f"- Source: {offer['data_source_label']}")
-            if offer.get("contains_synthetic_marketing_carrier") and offer["data_source"] != "synthetic":
-                lines.append("- A marketing carrier on this offer is Duffel Airways (`ZZ`).")
+            lines.append(f"- Carrier code: {offer['carrier_code_label']}")
+            if offer.get("contains_duffel_airways_marketing_carrier") and offer["carrier_code_kind"] != "duffel_airways":
+                lines.append(
+                    "- A marketing carrier code on this offer is Duffel Airways (`ZZ`). "
+                    "The price is still test-mode (not a real price)."
+                )
             lines.append(f"- Marketing flights: {', '.join(offer['marketing_flights']) or 'n/a'}")
             lines.append("- Segments:")
             for slc in offer["slices"]:
@@ -948,9 +958,10 @@ def build_report(routes: list[dict]) -> dict:
             "cheapest_n": CHEAPEST_N,
         },
         "notice": (
-            "Test-mode data may be synthetic. Offers owned by Duffel Airways (IATA ZZ) "
-            "are sandbox offers. Offers owned by any other airline are flagged as real-airline "
-            "results, but test-mode prices and availability can still differ from live inventory."
+            "Every offer is test-mode (not a real price). A duffel_test_ token returns "
+            "sandbox offers only, including offers owned by a real airline. Prices, baggage, "
+            "and conditions are not live. 'real airline' means only that the owner IATA code "
+            "exists and is not Duffel Airways (ZZ)."
         ),
         "routes": routes,
     }
